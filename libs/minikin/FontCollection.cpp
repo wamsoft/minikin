@@ -29,6 +29,11 @@
 #include "LocaleListCache.h"
 #include "MinikinInternal.h"
 
+#ifdef WAMSOFT_MODIFIED
+#include <unicode/utf.h>
+#include <unicode/utf16.h>
+#endif
+
 using std::vector;
 
 namespace minikin {

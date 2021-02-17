@@ -20,8 +20,12 @@
 #define MINIKIN_INTERNAL_H
 
 #include <hb.h>
+#ifdef WAMSOFT_MODIFIED
+#include "../log/log.h"
+#else
 #include <utils/Log.h>
 #include <utils/Mutex.h>
+#endif
 
 #include "minikin/HbUtils.h"
 #include "minikin/MinikinFont.h"

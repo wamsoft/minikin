@@ -1,0 +1,65 @@
+# MEMO
+# VSCode の Cmake ext. でデフォルト生成したときのv3.0.0 だと
+# ポリシーCMP0057 に引っかかって harfbuzz が取り込めないので注意
+cmake_minimum_required(VERSION 3.15.0)
+
+# vcpkg対応(これは必ずprojectコマンドの前にすること)
+if(DEFINED ENV{VCPKG_ROOT} AND NOT DEFINED CMAKE_TOOLCHAIN_FILE)
+  set(CMAKE_TOOLCHAIN_FILE "$ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
+      CACHE STRING "")
+endif()
+
+project(minikin VERSION 0.1.0)
+set(TARGET_NAME minikin)
+
+file(GLOB SOURCES "libs/minikin/*.cpp")
+add_library(${TARGET_NAME} ${SOURCES})
+
+# 未定義実装を置き換えるための強制インクルードヘッダを指定する
+if(MSVC)
+  set(MSVC_GLOBAL_OPTIONS /utf-8 /wd4819 /wd4996 /wd4244 /wd4018 /MP)
+  target_compile_options(${TARGET_NAME} PRIVATE /FI"_stub.h" ${MSVC_GLOBAL_OPTIONS})
+  # harfbuzz-icu-freetype のビルドでコケるのでグローバルにUTF8オプション付与
+  # ついでに並列ビルドと各種Warn抑制(コードページ、unsigned比較等)
+  add_compile_options(${MSVC_GLOBAL_OPTIONS})
+else()
+  # GCC or Clang
+  target_compile_options(${TARGET_NAME} PRIVATE -include _stub.h)
+endif()
+
+# インクルードパス
+target_include_directories(${TARGET_NAME} PRIVATE "include" "libs")
+
+# 一部機能が C++17 を要求するので
+target_compile_features(${TARGET_NAME} PRIVATE cxx_std_17)
+
+# Wamsoft の変更部分を有効にする
+add_compile_definitions(WAMSOFT_MODIFIED)
+
+# FT/HB/ICU を vcpkg で参照するか、harfbuzz-icu-freetype で参照するか
+option(USE_VCPKG "Build with vcpkg packages." OFF)
+if(USE_VCPKG)
+  # vcpkg: GoogleTest, FreeType, HarfBuzz、ICU
+  # MEMO: ICU を component 単位指定しようとすると以下のエラーでコケるので
+  #       とりあえずまるっと指定してる
+  #          CMake Error at CMakeLists.txt:30 (target_link_libraries):
+  #            Cannot specify link libraries for target "icutest" which is not built by
+  #            this project.
+  find_package(freetype CONFIG REQUIRED)
+  find_package(harfbuzz CONFIG REQUIRED)
+  find_package(ICU REQUIRED)
+  # find_package(ICU REQUIRED COMPONENTS uc i18n data io)
+
+  target_link_libraries(${TARGET_NAME} PRIVATE freetype)
+  target_link_libraries(${TARGET_NAME} PRIVATE harfbuzz harfbuzz::harfbuzz)
+  target_link_libraries(${TARGET_NAME} PRIVATE ICU)
+  # target_link_libraries(icutest PRIVATE ICU::uc ICU::i18n ICU::data ICU::io)
+else()
+  # Harfbuzz ICU Freetype
+  # minikinの配下に配置すること
+  set(HARFBUZZ_BUILD_ICU ON CACHE BOOL "Enable building of ICU")
+  set(HARFBUZZ_BUILD_UCDN ON CACHE BOOL "Enable building of UCDN")
+  add_subdirectory(${PROJECT_SOURCE_DIR}/harfbuzz-icu-freetype)
+  target_link_libraries(${TARGET_NAME} harfbuzz icucommon freetype glfw libglew_static)
+endif(USE_VCPKG)
+unset(USE_VCPKG CACHE) # 消しておかないと、Cmakeキャッシュに残って面倒になる
