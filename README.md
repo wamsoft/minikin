@@ -6,6 +6,27 @@ Android の minikin を単独のライブラリとして(主に Windows で)
 とりあえずは各種テストを Windows で行えるようにすることを優先しているので、
 m2lib 等に組み込む場合は、さらに対応が必要になるはず。
 
+## fork についてのメモ
+
+オリジナルのソースツリーのforkという形式にしてあるため、
+オリジナルのコミットログが全部見える状態になっている。
+
+以下のような形でオリジナルを upstream として取り込んだ。
+
+- github で新規レポジトリ(ここ)を作成
+- 作ったレポジトリをローカルに clone
+- オリジナルのツリーを upstream として設定
+```
+$ git remote add upstream https://android.googlesource.com/platform/frameworks/minikin
+$ git fetch upstream
+$ git merge upstream/master
+```
+- upstream をマージしたものを `wamsoft/minikin` として push
+```
+$ git push origin master
+```
+- 以後、単独ビルドのための対応を随時コミット。
+
 ## タスク
 
 - [x] minikin 単独でのライブラリビルド
