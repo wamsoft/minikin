@@ -34,8 +34,9 @@ $ git push origin master
 ## タスク
 
 - [x] minikin 単独でのライブラリビルド
-- [ ] minikin をリンクしたテスト実行バイナリの作成
-- [ ] vcpkg ビルドでフル static リンク
+- [x] minikin をリンクしたテスト実行バイナリの作成
+- [x] vcpkg ビルドでフル static リンク
+  - CMake では明示的に shared 指定しないと、勝手に static ビルドになってた
 - [ ] CMake を使わない Makefile の作成(m2lib 前提になるので、このレポジトリでは不要か)
 
 ## minikin の Windows ビルド対応について
