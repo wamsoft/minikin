@@ -1,30 +1,34 @@
 # minikin port
 
 Android の minikin を単独のライブラリとして(主に Windows で)
-利用できるようにするためのレポジトリ。
+利用できるようにするためのレポジトリです。
 
 とりあえずは各種テストを Windows で行えるようにすることを優先しているので、
-m2lib 等に組み込む場合は、さらに対応が必要になるはず。
+m2lib 等に組み込む場合は、さらに対応が必要になるはずです。
 
 ## fork についてのメモ
 
-オリジナルのソースツリーのforkという形式にしてあるため、
-オリジナルのコミットログが全部見える状態になっている。
+オリジナルのソースツリーの fork という形式にしてあるため、
+オリジナルのコミットログが全部見える状態になっています。
 
-以下のような形でオリジナルを upstream として取り込んだ。
+以下のような形でオリジナルを upstream として取り込みました。
 
 - github で新規レポジトリ(ここ)を作成
 - 作ったレポジトリをローカルに clone
 - オリジナルのツリーを upstream として設定
+
 ```
 $ git remote add upstream https://android.googlesource.com/platform/frameworks/minikin
 $ git fetch upstream
 $ git merge upstream/master
 ```
+
 - upstream をマージしたものを `wamsoft/minikin` として push
+
 ```
 $ git push origin master
 ```
+
 - 以後、単独ビルドのための対応を随時コミット。
 
 ## タスク
@@ -36,7 +40,7 @@ $ git push origin master
 
 ## minikin の Windows ビルド対応について
 
-- 変更した部分は基本的に `#ifdef WAMSOFT_MODIFIED` でマークしてある。
+- 変更した部分は基本的に `#ifdef WAMSOFT_MODIFIED` でマークしてあります。
 - Android core のヘッダ等で「とりあえず現物をコピー配置で対応可能」あるいは
   「ダミー・代替実装を配置して対応する」ケースでは、基本的に `libs/` に配置する。
   詳細は `libs/README.md` を参照
@@ -52,15 +56,19 @@ $ git push origin master
 
 ## ビルド方法
 
+**advengine への取り込みという本来の目的上、(vcpkg ではなく)
+harfbuzz-icu-freetype を使用したビルドが本流**になるので、
+vcpkg でのビルドはほったらかしになる可能性があります。
+
 ### vcpkg を使用する
 
-前準備として vcpkg で freetype、harfbuzz、icu を導入しておく。
+前準備として vcpkg で freetype、harfbuzz、icu を導入しておきます。
 注意としては、harfbuzz は icu 対応にする必要があるので、
-`vcpkg install harfbuzz[icu]` と指定する必要がある。
+`vcpkg install harfbuzz[icu]` と指定する必要があります。
 (もしかしたら、先に icu が導入済みの場合は勝手に入れてくれるかも？未確認)
 
 CMake に `-DUSE_VCPKG=ON` を渡すことによって、vcpkg を参照した
-プロジェクトが生成される。
+プロジェクトが生成されます。
 
 ```bash
 $ mkdir build
@@ -73,11 +81,9 @@ $ cmake --build .
 ### harfbuzz-icu-freetype を使用する
 
 harfbuzz-icu-freetype を使用する場合は、minikin のルート直下に
-harfbuzz-icu-freetype を clone しておく。
+harfbuzz-icu-freetype を clone しておいてください。
 
-CMake の参照の仕方(`add_subdirectory()`)の関係上、配下に展開する必要がある。
-並列に置いて参照する方法はまだ調べてないが、最終的に CMake を使わない環境(m2lib)での
-利用を想定しているので、CMake ビルドではとりあえずこれで確認だけできればいいかなという状態。
+CMake の参照の仕方(`add_subdirectory()`)の関係上、配下に展開する必要があります。
 
 ```bash
 $ git clone https://github.com/tangrams/harfbuzz-icu-freetype.git
