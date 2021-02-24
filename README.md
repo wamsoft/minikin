@@ -41,6 +41,8 @@ $ git push origin master
 
 ## minikin の Windows ビルド対応について
 
+### 主な変更点
+
 - 変更した部分は基本的に `#ifdef WAMSOFT_MODIFIED` でマークしてあります。
 - Android core のヘッダ等で「とりあえず現物をコピー配置で対応可能」あるいは
   「ダミー・代替実装を配置して対応する」ケースでは、基本的に `libs/` に配置する。
@@ -54,6 +56,15 @@ $ git push origin master
     このような対応にした。
   - 強制インクルードの方法はコンパイラ依存なので、最終的に CMake を使用しない
     m2lib などに組み込む際は `#include "_stub.h"` を必要なソースに書いてまわらないとダメかも…。
+
+### コード生成フラグ
+
+すべて `/MT(d)` でビルドされるように設定してあります。
+(vcpkg の static ライブラリが `/MT(d)` になる仕様に合わせてあります)。
+不都合な場合は、CMakeLists.txt の `set_property(... MSVC_RUNTIME_LIBRARY ...)` の
+部分を削除してください。
+
+CMake のデフォルトでは `/MD(d)` で生成されるようです。
 
 ## ビルド方法
 
@@ -94,3 +105,31 @@ $ cmake ..
 $ cmake --build .
 # あるいはシンプルに minikin.sln を VS2019 で開いてビルド
 ```
+
+**_★ 重要 ★_**
+
+harfbuzz-icu-freetype は、データファイルを stub で代用しているため、
+BreakIterator やロケール関連の機能をしようとするとエラーになります。
+
+ひとまず、 harfbuzz-icu-freetype の CMakeLists.txt から
+`icu/stubdata/stubdata.cpp` を削除した上で、vcpkg で `x64-windows-static` で
+作成した icu を参照してください。
+
+```
+$ vcpkg install icu:x64-windows-static
+```
+
+利用側の CMakeLists.txt でこんな感じに data コンポーネントを参照する。
+harfbuzz-icu-freetype で stubdata.cpp を外していないと、
+ルートのシンボル(`U_ICUDATA_ENTRY_POINT`)が stub に食われて辿れないので注意。
+
+```
+find_package(ICU REQUIRED COMPONENTS data)
+target_link_libraries(${PROJ_NAME} PRIVATE minikin ICU::data )
+```
+
+#### TODO
+
+harfbuzz-icu-freetype でリソースデータをビルドする方法については検討中。
+通常のビルド経路だと、一旦 stub で生成した tools のバイナリを使用することに
+なりそうなので、ちょっと面倒な感じでうーん…。

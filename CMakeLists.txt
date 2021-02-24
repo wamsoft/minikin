@@ -9,6 +9,9 @@ if(DEFINED ENV{VCPKG_ROOT} AND NOT DEFINED CMAKE_TOOLCHAIN_FILE)
       CACHE STRING "")
 endif()
 
+# vcpkg static を使用
+set(VCPKG_TARGET_TRIPLET x64-windows-static CACHE STRING "")
+
 project(minikin VERSION 0.1.0)
 set(PROJ_NAME minikin)
 
@@ -27,10 +30,9 @@ else()
   target_compile_options(${PROJ_NAME} PRIVATE -include _stub.h)
 endif()
 
-# インクルードパス。include は minikin 利用者が参照可能に PUBLIC
-target_include_directories(${PROJ_NAME}
-  PRIVATE libs
-  PUBLIC include)
+# インクルードパス
+# libs/ は本来内部実装用の非公開パスだが全部見えるようにしておく(テスト向け)
+target_include_directories(${PROJ_NAME} PUBLIC libs include)
 
 # 一部機能が C++17 を要求するので
 target_compile_features(${PROJ_NAME} PRIVATE cxx_std_17)
@@ -55,5 +57,12 @@ else()
   set(HARFBUZZ_BUILD_UCDN ON CACHE BOOL "Enable building of UCDN")
   add_subdirectory(${PROJECT_SOURCE_DIR}/harfbuzz-icu-freetype)
   target_link_libraries(${PROJ_NAME} harfbuzz icucommon freetype)
+  # harfbuzz-icu-freetype のライブラリをすべて /MT(d) でビルドする
+  set_property(TARGET harfbuzz icucommon freetype 
+    PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 endif(USE_VCPKG)
 unset(USE_VCPKG CACHE) # 消しておかないと、Cmakeキャッシュに残って面倒になる
+
+# /MT(d) でビルドする
+set_property(TARGET ${PROJ_NAME} 
+  PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
