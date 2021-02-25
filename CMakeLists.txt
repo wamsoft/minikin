@@ -60,6 +60,14 @@ else()
   # harfbuzz-icu-freetype のライブラリをすべて /MT(d) でビルドする
   set_property(TARGET harfbuzz icucommon freetype 
     PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+  # ICU のリソースデータをリンク
+  if(CMAKE_SIZEOF_VOID_P EQUAL 8) # 64 bits
+    target_link_libraries(${PROJ_NAME} 
+      ${CMAKE_CURRENT_SOURCE_DIR}/icudata/lib64/icudt67.lib)
+  elseif(CMAKE_SIZEOF_VOID_P EQUAL 4) # 32 bits
+    target_link_libraries(${PROJ_NAME} 
+      ${CMAKE_CURRENT_SOURCE_DIR}/icudata/lib/icudt67.lib)
+  endif()
 endif(USE_VCPKG)
 unset(USE_VCPKG CACHE) # 消しておかないと、Cmakeキャッシュに残って面倒になる
 

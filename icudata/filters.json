@@ -1,0 +1,26 @@
+{
+  "strategy": "additive",
+  "localeFilter": {
+    "filterType": "language",
+    // "includeChildren": false,
+    "whitelist": [
+      "en_US",
+      "ja_JP",
+      "zh_CN",
+      "zh_TW"
+    ]
+  },
+  "featureFilters": {
+    // need for minikin(locale tags)
+    "misc": "include",
+
+    // break iterator rules
+    "brkitr_rules": "include",
+    "brkitr_dictionaries": "include",
+    "brkitr_tree": "include",
+
+    // depends by brkitr
+    "cnvalias": "include",
+    "ulayout": "include",
+  }
+}

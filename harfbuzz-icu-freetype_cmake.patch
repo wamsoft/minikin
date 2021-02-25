@@ -1,0 +1,14 @@
+--- harfbuzz-icu-freetype/CMakeLists.txt.org	2021-02-18 00:12:07.193115800 +0900
++++ harfbuzz-icu-freetype/CMakeLists.txt	2021-02-25 23:31:24.034853500 +0900
+@@ -229,11 +229,9 @@ if (HARFBUZZ_BUILD_ICU)
+         icu/common/uvectr32.cpp
+         icu/common/uvectr64.cpp
+         icu/common/wintz.cpp
+-        icu/stubdata/stubdata.cpp
+         )
+     target_include_directories(icucommon PUBLIC
+         ${CMAKE_CURRENT_SOURCE_DIR}/icu/common
+-        ${CMAKE_CURRENT_SOURCE_DIR}/icu/stubdata
+         ${CMAKE_CURRENT_SOURCE_DIR}/icu/common/unicode)
+     target_compile_definitions(icucommon PUBLIC
+         -DU_STATIC_IMPLEMENTATION=1
