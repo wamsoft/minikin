@@ -1,23 +1,34 @@
 # About
 
-harfbuzz-icu-freetype の ICU では data を持たないため、
+harfbuzz-icu-freetype の ICU ではロケール処理や BreakIterator の処理に
+必要なリソースデータを持たずに stub でごまかしているため、
 locale 関連の API や BreakIterator がリソースエラーで
-動作しない問題を解決するために、data を単独でビルドするために
-必要なものを集めたディレクトリです。
+動作しないという問題があります。
 
-また、単純に全リソースをビルドすると巨大になるため、
-必要なリソースのみをビルドするようにしてあります。
+これを解決するためにリソースデータの単独でのビルドに
+必要なファイル等を集めたディレクトリです。
 
-- harfbuzz-icu-freetype のビルドから stubdata のリンクを外す
-- 必要な ICU リソースだけをビルドして static lib として生成する
-- minikin + harfbuzz-icu-freetype にリンクする
+また、単純に全リソースをビルドすると巨大になりますが、
+フィルタ指定により必要なリソースのみをビルドすることが
+可能になっています(方法は後述)。
+
+ここで生成したリソースデータは static lib としてリンクされますが、
+harfbuzz-icu-freetype のビルドから stubdata のリンクを外しておく
+必要があります。stubdata がリンクされたままだと、
+リソースデータのエントリポイントのシンボルがぶつかって
+作成したリソースデータが正しく参照されずに各種 API での
+リソースエラーが解消しないままとなります。
+
+stubdata の除外については minikin のルートディレクトリに
+cmake 用のパッチが置いてありますので、
+ルートの README.md を参照の上、適用しておいてください。
 
 ## タスク
 
 - [ ] Windows 以外の生成に対応
   - ディレクトリ等を考慮して Makefile を更新する必要あり
 
-## Windows 向け以外のビルドについて
+## Windows 向け以外のリソースビルドについて
 
 現状では、最終的に static lib にする部分が Windows 向けのみとなっています。
 `pkgdata.exe` の static lib の生成方法が C ソースに
