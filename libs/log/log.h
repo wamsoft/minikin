@@ -21,6 +21,7 @@
 
 // TODO ひとまず握りつぶしておく系
 #ifndef LOG_ALWAYS_FATAL_IF
-#define LOG_ALWAYS_FATAL_IF(...) ((void)0)
+// #define LOG_ALWAYS_FATAL_IF(...) ((void)0)
+#define LOG_ALWAYS_FATAL_IF(cond,...) if (cond){abort();}
 #endif
 
