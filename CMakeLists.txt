@@ -4,6 +4,7 @@
 cmake_minimum_required(VERSION 3.15.0)
 
 # vcpkg対応(これは必ずprojectコマンドの前にすること)
+# harfbuzz-icu-freetype を使用する場合でも libpng は vcpkg 参照になっているので必要
 if(DEFINED ENV{VCPKG_ROOT} AND NOT DEFINED CMAKE_TOOLCHAIN_FILE)
   set(CMAKE_TOOLCHAIN_FILE "$ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
       CACHE STRING "")
@@ -40,6 +41,12 @@ target_compile_features(${PROJ_NAME} PRIVATE cxx_std_17)
 # Wamsoft の変更部分を有効にする
 add_compile_definitions(WAMSOFT_MODIFIED)
 
+# FT の png フォント対応用
+find_package(libpng CONFIG REQUIRED)
+target_link_libraries(${PROJ_NAME} PRIVATE png_static)
+find_package(ZLIB REQUIRED)
+target_link_libraries(${PROJ_NAME} PRIVATE ZLIB::ZLIB)
+
 # FT/HB/ICU を vcpkg で参照するか、harfbuzz-icu-freetype で参照するか
 option(USE_VCPKG "Build with vcpkg packages." OFF)
 if(USE_VCPKG)
@@ -53,19 +60,21 @@ if(USE_VCPKG)
 else()
   # Harfbuzz ICU Freetype
   # minikinの配下に配置すること
+  set(FT_WITH_PNG ON CACHE BOOL "Enable FT with PNG")
+  set(FT_WITH_ZLIB ON CACHE BOOL "Enable FT with ZLIB")
   set(HARFBUZZ_BUILD_ICU ON CACHE BOOL "Enable building of ICU")
   set(HARFBUZZ_BUILD_UCDN ON CACHE BOOL "Enable building of UCDN")
   add_subdirectory(${PROJECT_SOURCE_DIR}/harfbuzz-icu-freetype)
-  target_link_libraries(${PROJ_NAME} harfbuzz icucommon freetype)
+  target_link_libraries(${PROJ_NAME} PRIVATE harfbuzz icucommon freetype)
   # harfbuzz-icu-freetype のライブラリをすべて /MT(d) でビルドする
   set_property(TARGET harfbuzz icucommon freetype 
     PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
   # ICU のリソースデータをリンク
   if(CMAKE_SIZEOF_VOID_P EQUAL 8) # 64 bits
-    target_link_libraries(${PROJ_NAME} 
+    target_link_libraries(${PROJ_NAME} PRIVATE
       ${CMAKE_CURRENT_SOURCE_DIR}/icudata/lib64/icudt67.lib)
   elseif(CMAKE_SIZEOF_VOID_P EQUAL 4) # 32 bits
-    target_link_libraries(${PROJ_NAME} 
+    target_link_libraries(${PROJ_NAME} PRIVATE
       ${CMAKE_CURRENT_SOURCE_DIR}/icudata/lib/icudt67.lib)
   endif()
 endif(USE_VCPKG)
