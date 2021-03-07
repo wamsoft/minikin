@@ -120,6 +120,12 @@ $ cd icudata
 $ make
 ```
 
+さらに、ビットマップフォント対応のため libpng を vcpkg で導入してください。
+
+```
+$ vcpkg install libpng:x64-windows-static
+```
+
 その後、通常の CMake でビルド(あるいは、参照先のプロジェクトの
 CMake からビルド)を実行してください。
 
@@ -130,3 +136,7 @@ $ cmake ..
 $ cmake --build .
 # あるいはシンプルに minikin.sln を VS2019 で開いてビルド
 ```
+
+ここまで x64 環境を想定しているので、cmake にそれ以外の環境をターゲットにされた場合は、
+`cmake -G "Visual Studio 16 2019" -A x64` や `cmake -DCMAKE_GENERATOR_PLATFORM=x64` などを
+試してみてください。
