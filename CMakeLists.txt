@@ -65,7 +65,7 @@ else()
   set(HARFBUZZ_BUILD_ICU ON CACHE BOOL "Enable building of ICU")
   set(HARFBUZZ_BUILD_UCDN ON CACHE BOOL "Enable building of UCDN")
   add_subdirectory(${PROJECT_SOURCE_DIR}/harfbuzz-icu-freetype)
-  target_link_libraries(${PROJ_NAME} PRIVATE harfbuzz icucommon freetype)
+  target_link_libraries(${PROJ_NAME} PUBLIC harfbuzz icucommon freetype)
   # harfbuzz-icu-freetype のライブラリをすべて /MT(d) でビルドする
   set_property(TARGET harfbuzz icucommon freetype 
     PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
