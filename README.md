@@ -53,30 +53,11 @@ $ git push origin master
 
 freetype は vcpkg.json で導入されるものを使います
 
+環境別のビルドは CMakePresets.json の定義に合わせて --preset 指定で対応して下さい
 
-
-```bash
-
-$ mkdir build
-$ cd build
-$ cmake .. -DUSE_VCPKG=ON
-$ cmake --build .
-# あるいはシンプルに minikin.sln を VS2019 で開いてビルド
-```
+ビルド用の Makefile が準備されています
 
 ```bash
-$ cd icudata
-$ make
+make prebuild
+make
 ```
-
-その後、通常の CMake でビルド(あるいは、参照先のプロジェクトの
-CMake からビルド)を実行してください。
-
-```bash
-$ mkdir build
-$ cd build
-$ cmake ..
-$ cmake --build .
-# あるいはシンプルに minikin.sln を VS2019 で開いてビルド
-```
-
