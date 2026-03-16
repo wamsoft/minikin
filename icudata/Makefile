@@ -46,7 +46,11 @@ ROOT_DIR := $(CURDIR)
 # ビルド出力先 (プロジェクト直下の build/icudata)
 BUILD_DIR = $(ROOT_DIR)/../build/icudata
 
-# GitHubからダウンロードしたデータの配置先
+# 出力先ディレクトリ (外部から指定可能、デフォルトは BUILD_DIR)
+# cmake から OUTPUT_DIR=<path> で指定することで、各ビルドフォルダに出力可能
+OUTPUT_DIR ?= $(BUILD_DIR)
+
+# GitHubからダウンロードしたデータの配置先 (共有、BUILD_DIR 固定)
 DATA_DIR = $(BUILD_DIR)/data
 TOOL_DIR = $(BUILD_DIR)/bin64
 ICUTOOLS_DIR = $(BUILD_DIR)/icutools
@@ -56,14 +60,14 @@ FILTER_FILE = $(ROOT_DIR)/filters.json
 DOWNLOAD_SCRIPT = $(ROOT_DIR)/download_icu_data.sh
 REQUIREMENTS_FILE = $(ROOT_DIR)/requirements.txt
 
-# ビルド作業用ディレクトリ
-OUT_DIR = $(BUILD_DIR)/out
-TMP_DIR = $(BUILD_DIR)/tmp
-OBJ_DIR = $(BUILD_DIR)/obj
-DAT_DIR = $(BUILD_DIR)/dat
-LIB_DIR = $(BUILD_DIR)/lib
+# ビルド作業用ディレクトリ (OUTPUT_DIR 配下)
+OUT_DIR = $(OUTPUT_DIR)/icudata_build/out
+TMP_DIR = $(OUTPUT_DIR)/icudata_build/tmp
+OBJ_DIR = $(OUTPUT_DIR)/icudata_build/obj
+DAT_DIR = $(OUTPUT_DIR)/icudata_build/dat
+LIB_DIR = $(OUTPUT_DIR)/icudata_build/lib
 
-# Python venv 環境
+# Python venv 環境 (共有、BUILD_DIR 固定)
 VENV_DIR = $(BUILD_DIR)/venv
 PYTHON = $(VENV_DIR)/Scripts/python.exe
 

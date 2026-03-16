@@ -1,10 +1,7 @@
 # minikin port
 
-Android の minikin を単独のライブラリとして(主に Windows で)
+Android の minikin を単独のライブラリとして
 利用できるようにするためのレポジトリです。
-
-とりあえずは各種テストを Windows で行えるようにすることを優先しているので、
-m2lib 等に組み込む場合は、さらに対応が必要になるはずです。
 
 ## fork についてのメモ
 
@@ -51,50 +48,21 @@ $ git push origin master
   コンパイラの強制インクルードですべてのファイルが読み込むような形にしてある
   - `ssize_t` など範囲が広く、各ソースで共通して include しているヘッダがないため
     このような対応にした。
-  - 強制インクルードの方法はコンパイラ依存なので、最終的に CMake を使用しない
-    m2lib などに組み込む際は `#include "_stub.h"` を必要なソースに書いてまわらないとダメかも…。
 
-### vcpkg を使用する
+### vcpkg の使用
 
-前準備として vcpkg で freetype、harfbuzz、icu を導入しておきます。
-注意としては、harfbuzz は icu 対応にする必要があるので、
-`vcpkg install harfbuzz[icu]` と指定する必要があります。
-(もしかしたら、先に icu が導入済みの場合は勝手に入れてくれるかも？未確認)
+freetype は vcpkg.json で導入されるものを使います
 
-CMake に `-DUSE_VCPKG=ON` を渡すことによって、vcpkg を参照した
-プロジェクトが生成されます。
+
 
 ```bash
+
 $ mkdir build
 $ cd build
 $ cmake .. -DUSE_VCPKG=ON
 $ cmake --build .
 # あるいはシンプルに minikin.sln を VS2019 で開いてビルド
 ```
-
-### harfbuzz-icu-freetype を使用する
-
-harfbuzz-icu-freetype を使用する場合は、minikin のルート直下に
-harfbuzz-icu-freetype を clone しておいてください。
-
-CMake の参照の仕方(`add_subdirectory()`)の関係上、配下に展開する必要があります。
-
-```bash
-$ git clone https://github.com/tangrams/harfbuzz-icu-freetype.git
-```
-
-clone 後、cmake を実行する前に以下のパッチを適用してください。
-
-harfbuzz-icu-freetype は、データファイルを stub で代用しているため、
-BreakIterator やロケール関連の機能をしようとするとエラーになりますが、
-それを回避するために stub のリンクを削除するパッチです。
-
-```bash
-$ patch -p0 < harfbuzz-icu-freetype_cmake.patch
-```
-
-ここで必要なら、ICU のリソースデータを再ビルドしてください。
-(含めるロケールを変更するなどした場合)。
 
 ```bash
 $ cd icudata

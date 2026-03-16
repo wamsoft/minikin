@@ -1,33 +1,11 @@
 # About
 
-harfbuzz-icu-freetype の ICU ではロケール処理や BreakIterator の処理に
-必要なリソースデータを持たずに stub でごまかしているため、
-locale 関連の API や BreakIterator がリソースエラーで
-動作しないという問題があります。
-
-これを解決するためにリソースデータの単独でのビルドに
+ICU 用のリソースデータの単独でのビルドに
 必要なファイル等を集めたディレクトリです。
 
 また、単純に全リソースをビルドすると巨大になりますが、
 フィルタ指定により必要なリソースのみをビルドすることが
 可能になっています(方法は後述)。
-
-ここで生成したリソースデータは static lib としてリンクされますが、
-harfbuzz-icu-freetype のビルドから stubdata のリンクを外しておく
-必要があります。stubdata がリンクされたままだと、
-リソースデータのエントリポイントのシンボルがぶつかって
-作成したリソースデータが正しく参照されずに各種 API での
-リソースエラーが解消しないままとなります。
-
-stubdata の除外については minikin のルートディレクトリに
-cmake 用のパッチが置いてありますので、
-ルートの README.md を参照の上、適用しておいてください。
-
-## タスク
-
-- [x] ICU データの自動ダウンロード対応
-- [x] Windows 以外の生成に対応
-  - ディレクトリ等を考慮して Makefile を更新する必要あり
 
 ## ディレクトリ構成
 
@@ -53,10 +31,7 @@ icudata/
 
 ## ICU データの取得
 
-**_[重要] ICU のバージョンは harfbuzz-icu-freetype 内の ICU の
-バージョンに合わせてください。
-(ICU 内部のリソースバンドルの読み込み部でバージョン番号を
-エントリポイント名に使用しているので合わせないとコケます)。_**
+**_[重要] ICU のバージョン上位の ext/icu/CMakeLists.txt で作成する ICU のバージョンに合わせてください。
 
 ### 自動ダウンロード (推奨)
 
@@ -78,29 +53,14 @@ make prepare
 ICU のバージョンを変更する場合は、`Makefile` 内の以下の変数を編集してください:
 
 ```makefile
-ICU_VER = 67              # メジャーバージョン番号
-ICU_VERSION_TAG = 67-1    # GitHub リリースタグ (release-XX-X 形式)
-MSVC_VERSION = MSVC2017   # Win64 バイナリの MSVC バージョン
+ICU_VER = 78              # メジャーバージョン番号
+ICU_VERSION_TAG = 78.2    # GitHub リリースタグ (release-XX.X 形式)
+MSVC_VERSION = MSVC2022   # Win64 バイナリの MSVC バージョン
 ```
 
 **注意**: MSVC_VERSION は ICU リリースで提供されているバイナリに合わせてください。
 利用可能なバージョンは https://github.com/unicode-org/icu/releases で確認できます。
-(例: MSVC2017, MSVC2019 等)
-
-### 手動ダウンロード
-
-自動ダウンロードがうまくいかない場合は、以下から手動でダウンロードして
-`build/icudata/` 配下に配置してください:
-
-- https://github.com/unicode-org/icu/releases
-
-| ファイル | 配置先 | 内容 |
-|---------|--------|------|
-| icu4c-67_1-data.zip | build/icudata/data/ | データソース |
-| icu4c-67_1-Win64-MSVC2017.zip | build/icudata/bin64/ | Win64 ツール (bin64/ 配下) |
-| icu4c-67_1-src.zip | build/icudata/icutools/ | icu/source/python/icutools/ |
-
-※ MSVC2017 の部分はリリースによって異なります (MSVC2019 等)
+(例: MSVC2019, MSVC20222 等)
 
 ## 前提環境
 
@@ -127,7 +87,7 @@ cd icudata
 make
 ```
 
-出力先: `build/icudata/lib/libicudt67.a`
+出力先: `build/icudata/lib/libicudt78.a`
 
 ### アーキテクチャ変更
 
@@ -136,10 +96,8 @@ make
 ```bash
 # 32bit Windows
 make OBJFORMAT=pe-i386 OBJARCH=i386 ADD_UNDERSCORE=1
-
 # 64bit Linux
 make OBJFORMAT=elf64-x86-64 OBJARCH=i386:x86-64
-
 # 32bit Linux
 make OBJFORMAT=elf32-i386 OBJARCH=i386 ADD_UNDERSCORE=1
 ```
@@ -175,10 +133,3 @@ https://github.com/unicode-org/icu/blob/master/docs/userguide/icu_data/buildtool
 minikin としては brkitr は使う予定のロケール分は必要。
 あとは、フォント絡みでもロケールタグ関係で必要になるので misc と
 もしかしたら他にもなにか必要になるかもしれません。
-
-### リソースバンドルのファイルからのロード
-
-ICU 標準でファイルからのロードという方法もあるようなのですが、
-ファイルロード周りを仮想化している雰囲気が無く、fopen とかが
-そのまま埋まってる気配があるので PS4/5 などへの展開を考えると
-そちらでの運用はちょっと難しそうな感じはします。
