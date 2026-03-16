@@ -18,9 +18,15 @@
     "brkitr_rules": "include",
     "brkitr_dictionaries": "include",
     "brkitr_tree": "include",
+    "brkitr_lstm": "include",
+    "brkitr_adaboost": "include",
 
     // depends by brkitr
     "cnvalias": "include",
     "ulayout": "include",
+
+    "lang_tree": "include",
+    "uemoji" : "include",
+    "locales_tree": "include"
   }
 }

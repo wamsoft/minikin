@@ -8,13 +8,13 @@
 set -e
 
 # 引数またはデフォルト値
-ICU_VERSION="${1:-67-1}"
+ICU_VERSION="${1:-77-1}"
 OUTPUT_DIR="${2:-../build/icudata}"
 MSVC_VERSION="${3:-MSVC2017}"
 
-# バージョン文字列の変換 (67-1 -> 67_1 for filename)
+# バージョン文字列の変換 (77-1 -> 77_1 for filename)
 ICU_VERSION_UNDERSCORE="${ICU_VERSION//-/_}"
-# リリースタグ用 (67-1 -> release-67-1)
+# リリースタグ用 (77-1 -> release-77-1)
 ICU_RELEASE_TAG="release-${ICU_VERSION}"
 
 # GitHub Release URL
@@ -23,7 +23,7 @@ GITHUB_RELEASE_BASE="https://github.com/unicode-org/icu/releases/download/${ICU_
 # ダウンロードするファイル
 DATA_ZIP="icu4c-${ICU_VERSION_UNDERSCORE}-data.zip"
 WIN64_ZIP="icu4c-${ICU_VERSION_UNDERSCORE}-Win64-${MSVC_VERSION}.zip"
-SRC_ZIP="icu4c-${ICU_VERSION_UNDERSCORE}-sources.zip"
+SRC_ZIP="icu4c-${ICU_VERSION_UNDERSCORE}-src.zip"
 
 # 一時ディレクトリ
 TEMP_DIR="${OUTPUT_DIR}/_temp"
@@ -100,6 +100,39 @@ download_and_extract_bin64() {
     echo "bin64/ extracted successfully"
 }
 
+# 特定ファイルにBOMを追加する関数 (Windows対応)
+add_bom_to_file() {
+    local file="$1"
+    if [ -f "$file" ]; then
+        # ファイルの先頭にBOMがあるかチェック
+        if ! head -c 3 "$file" | grep -q $'\xEF\xBB\xBF'; then
+            # BOMを追加
+            local temp_file="${file}.tmp"
+            printf '\xEF\xBB\xBF' > "$temp_file"
+            cat "$file" >> "$temp_file"
+            mv "$temp_file" "$file"
+            echo "Added UTF-8 BOM to: $file"
+        else
+            echo "BOM already exists: $file"
+        fi
+    else
+        echo "Warning: File not found: $file"
+    fi
+}
+
+# data/ 内のファイルにBOMを追加 (Windows環境向け)
+add_bom_to_data_files() {
+    echo ""
+    echo "=== Adding BOM to data files (Windows compatibility) ==="
+    # BOMが必要なファイルのリスト
+    local files_need_bom=(
+        "${OUTPUT_DIR}/data/brkitr/adaboost/jaml.txt"
+    )
+    for file in "${files_need_bom[@]}"; do
+        add_bom_to_file "$file"
+    done
+}
+
 # icutools/ のダウンロードと展開
 download_and_extract_icutools() {
     if [ -d "${OUTPUT_DIR}/icutools" ]; then
@@ -120,6 +153,7 @@ download_and_extract_icutools() {
 
 # 実行
 download_and_extract_data
+add_bom_to_data_files
 download_and_extract_bin64
 download_and_extract_icutools
 

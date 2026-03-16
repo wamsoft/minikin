@@ -61,3 +61,6 @@ freetype は vcpkg.json で導入されるものを使います
 make prebuild
 make
 ```
+
+### 既知の問題（更新時注意）
+

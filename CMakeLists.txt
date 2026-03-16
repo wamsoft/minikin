@@ -34,7 +34,7 @@ add_compile_definitions(WAMSOFT_MODIFIED)
 # FreeType は vcpkg からインストール
 find_package(freetype CONFIG REQUIRED)
 
-# ICU 78.2 (GitHub からソース取得してビルド)
+# ICU 77.1 (GitHub からソース取得してビルド)
 add_subdirectory(${PROJECT_SOURCE_DIR}/ext/icu)
 
 # HarfBuzz 13.1.1 (GitHub から取得、freetype と ICU に依存)
@@ -45,7 +45,7 @@ add_subdirectory(${PROJECT_SOURCE_DIR}/ext/harfbuzz)
 # ==============================================================================
 set(ICU_DATA_DIR ${PROJECT_SOURCE_DIR}/icudata)
 set(ICU_DATA_OUTPUT_DIR ${PROJECT_BINARY_DIR})
-set(ICU_DATA_LIB ${ICU_DATA_OUTPUT_DIR}/icudata_build/lib/libicudt78.a)
+set(ICU_DATA_LIB ${ICU_DATA_OUTPUT_DIR}/icudata_build/lib/libicudt77.a)
 
 # ICU データライブラリをビルドするカスタムターゲット
 # Windows では MSYS2/Git Bash 環境の make を想定

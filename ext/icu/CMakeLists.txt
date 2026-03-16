@@ -1,10 +1,10 @@
 cmake_minimum_required(VERSION 3.20.0)
 
-project(icucommon VERSION 78.2 LANGUAGES CXX C)
+project(icucommon VERSION 77.1 LANGUAGES CXX C)
 
-# ICU 78.2 をダウンロード（GitHubソースコードアーカイブを使用）
+# ICU 77.1 をダウンロード（GitHubソースコードアーカイブを使用）
 include(FetchContent)
-set(ICU_VERSION "release-78.2")
+set(ICU_VERSION "release-77.1")
 set(ICU_URL "https://github.com/unicode-org/icu/archive/refs/tags/${ICU_VERSION}.tar.gz")
 
 FetchContent_Declare(
@@ -13,10 +13,10 @@ FetchContent_Declare(
     DOWNLOAD_EXTRACT_TIMESTAMP TRUE
 )
 
-message(STATUS "Downloading ICU 78.2 from ${ICU_URL}...")
+message(STATUS "Downloading ICU 77.1 from ${ICU_URL}...")
 FetchContent_MakeAvailable(icu_source)
 
-# GitHubアーカイブの構造: icu-release-78.2/icu4c/source/
+# GitHubアーカイブの構造: icu-release-77.1/icu4c/source/
 set(ICU_SOURCE_DIR "${icu_source_SOURCE_DIR}/icu4c/source")
 
 # common ディレクトリのソースを収集
@@ -67,7 +67,7 @@ add_library(ICU::common ALIAS icucommon)
 add_library(ICU::uc ALIAS icucommon)
 
 # ICU バージョン情報をエクスポート（親スコープにも設定）
-set(ICU_VERSION "78.2" CACHE STRING "ICU version" FORCE)
+set(ICU_VERSION "77.1" CACHE STRING "ICU version" FORCE)
 set(ICU_FOUND TRUE CACHE BOOL "ICU found" FORCE)
 set(ICU_uc_FOUND TRUE CACHE BOOL "ICU uc component found" FORCE)
 

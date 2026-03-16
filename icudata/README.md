@@ -53,8 +53,8 @@ make prepare
 ICU のバージョンを変更する場合は、`Makefile` 内の以下の変数を編集してください:
 
 ```makefile
-ICU_VER = 78              # メジャーバージョン番号
-ICU_VERSION_TAG = 78.2    # GitHub リリースタグ (release-XX.X 形式)
+ICU_VER = 77              # メジャーバージョン番号
+ICU_VERSION_TAG = 77_1   # GitHub リリースタグ (release-XX.X 形式)
 MSVC_VERSION = MSVC2022   # Win64 バイナリの MSVC バージョン
 ```
 
@@ -87,7 +87,7 @@ cd icudata
 make
 ```
 
-出力先: `build/icudata/lib/libicudt78.a`
+出力先: `build/icudata/lib/libicudt77.a`
 
 ### アーキテクチャ変更
 
@@ -133,3 +133,14 @@ https://github.com/unicode-org/icu/blob/master/docs/userguide/icu_data/buildtool
 minikin としては brkitr は使う予定のロケール分は必要。
 あとは、フォント絡みでもロケールタグ関係で必要になるので misc と
 もしかしたら他にもなにか必要になるかもしれません。
+
+## 既知の問題
+
+ICU77.1（78も）
+
+brkitr_adaboost 用のデータを作るために genrb というツールで以下のファイルを処理しているが、
+このファイルを読み込む際に UTF-8 が誤認される。genrb 側のバグだと思われる（バイナリでファイルを開いてないと思われる）
+先頭に BOM をつけると回避できるので、download_icu_data.sh に、追加用の処理が入っている。
+
+/data/brkitr/adaboost/jaml.txt
+

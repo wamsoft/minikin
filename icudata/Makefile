@@ -3,8 +3,8 @@
 # ==============================================================================
 
 # ICU バージョン設定
-ICU_VER = 78
-ICU_VERSION_TAG = 78.2
+ICU_VER = 77
+ICU_VERSION_TAG = 77-1
 MSVC_VERSION = MSVC2022
 
 # エンディアン指定 (l=little-endian, b=big-endian)
