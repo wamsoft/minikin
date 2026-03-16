@@ -58,3 +58,18 @@ endif()
 
 # エイリアスターゲット
 add_library(ICU::common ALIAS icucommon)
+
+# ==============================================================================
+# HarfBuzz の find_package(ICU) をバイパスするための設定
+# ==============================================================================
+
+# ICU::uc エイリアス (HarfBuzz は ICU::uc を要求する)
+add_library(ICU::uc ALIAS icucommon)
+
+# ICU バージョン情報をエクスポート（親スコープにも設定）
+set(ICU_VERSION "78.2" CACHE STRING "ICU version" FORCE)
+set(ICU_FOUND TRUE CACHE BOOL "ICU found" FORCE)
+set(ICU_uc_FOUND TRUE CACHE BOOL "ICU uc component found" FORCE)
+
+# インクルードディレクトリをエクスポート
+set(ICU_INCLUDE_DIRS "${ICU_SOURCE_DIR}/common" CACHE PATH "ICU include directories" FORCE)

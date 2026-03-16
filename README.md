@@ -35,10 +35,6 @@ $ git push origin master
 
 - [x] minikin 単独でのライブラリビルド
 - [x] minikin をリンクしたテスト実行バイナリの作成
-- [x] vcpkg ビルドでフル static リンク
-  - CMake では明示的に shared 指定しないと、勝手に static ビルドになってた
-- [ ] CMake を使わない Makefile の作成(m2lib 前提になるので、このレポジトリでは不要か)
-- [ ] harfbuzz-icu-freetype を CMake の ExternalProject にして自動取得＆パッチまで cmake にまかせられないか？
 
 ## minikin の Windows ビルド対応について
 
@@ -57,21 +53,6 @@ $ git push origin master
     このような対応にした。
   - 強制インクルードの方法はコンパイラ依存なので、最終的に CMake を使用しない
     m2lib などに組み込む際は `#include "_stub.h"` を必要なソースに書いてまわらないとダメかも…。
-
-### コード生成フラグ
-
-すべて `/MT(d)` でビルドされるように設定してあります。
-(vcpkg の static ライブラリが `/MT(d)` になる仕様に合わせてあります)。
-不都合な場合は、CMakeLists.txt の `set_property(... MSVC_RUNTIME_LIBRARY ...)` の
-部分を削除してください。
-
-CMake のデフォルトでは `/MD(d)` で生成されるようです。
-
-## ビルド方法
-
-**advengine への取り込みという本来の目的上、(vcpkg ではなく)
-harfbuzz-icu-freetype を使用したビルドが本流**になるので、
-vcpkg でのビルドはほったらかしになる可能性があります。
 
 ### vcpkg を使用する
 
@@ -120,12 +101,6 @@ $ cd icudata
 $ make
 ```
 
-さらに、ビットマップフォント対応のため libpng を vcpkg で導入してください。
-
-```
-$ vcpkg install libpng:x64-windows-static
-```
-
 その後、通常の CMake でビルド(あるいは、参照先のプロジェクトの
 CMake からビルド)を実行してください。
 
@@ -137,6 +112,3 @@ $ cmake --build .
 # あるいはシンプルに minikin.sln を VS2019 で開いてビルド
 ```
 
-ここまで x64 環境を想定しているので、cmake にそれ以外の環境をターゲットにされた場合は、
-`cmake -G "Visual Studio 16 2019" -A x64` や `cmake -DCMAKE_GENERATOR_PLATFORM=x64` などを
-試してみてください。
