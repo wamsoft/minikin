@@ -1,69 +1,207 @@
-BASE_DIR = .
-DATA_DIR = $(BASE_DIR)/data
-TOOL32_DIR = $(BASE_DIR)/bin
-TOOL64_DIR = $(BASE_DIR)/bin64
-OUT_DIR = $(BASE_DIR)/out
-TMP_DIR = $(BASE_DIR)/tmp
-LIB32_DIR = $(BASE_DIR)/lib
-LIB64_DIR = $(BASE_DIR)/lib64
+# ==============================================================================
+# ICU データリソースビルド設定
+# ==============================================================================
 
-FILTER_FILE = $(BASE_DIR)/filters.json
-PKGDATA_LIST = $(BASE_DIR)/tmp/icudata.lst
-
-# ICU_VAR はメジャーバージョンを指定
-# LIB_CHAR にはエンディアンによって l or b を指定する
+# ICU バージョン設定
 ICU_VER = 67
+ICU_VERSION_TAG = 67-1
+MSVC_VERSION = MSVC2017
+
+# エンディアン指定 (l=little-endian, b=big-endian)
 LIB_CHAR = l
+
+# ==============================================================================
+# アーキテクチャ設定 (デフォルト: 64bit)
+# ==============================================================================
+# 64bit (デフォルト):
+#   OBJFORMAT = pe-x86-64
+#   OBJARCH = i386:x86-64
+#   ADD_UNDERSCORE =
+#
+# 32bit の場合は以下を指定:
+#   OBJFORMAT = pe-i386
+#   OBJARCH = i386
+#   ADD_UNDERSCORE = 1
+#
+# Linux 64bit:
+#   OBJFORMAT = elf64-x86-64
+#   OBJARCH = i386:x86-64
+#
+# Linux 32bit:
+#   OBJFORMAT = elf32-i386
+#   OBJARCH = i386
+#   ADD_UNDERSCORE = 1
+
+OBJFORMAT ?= pe-x86-64
+OBJARCH ?= i386:x86-64
+ADD_UNDERSCORE ?=
+
+# ==============================================================================
+# ディレクトリ設定
+# ==============================================================================
+
+# 絶対パスのベース (Makefile のあるディレクトリ)
+ROOT_DIR := $(CURDIR)
+
+# ビルド出力先 (プロジェクト直下の build/icudata)
+BUILD_DIR = $(ROOT_DIR)/../build/icudata
+
+# GitHubからダウンロードしたデータの配置先
+DATA_DIR = $(BUILD_DIR)/data
+TOOL_DIR = $(BUILD_DIR)/bin64
+ICUTOOLS_DIR = $(BUILD_DIR)/icutools
+
+# ローカルファイル (このディレクトリ内)
+FILTER_FILE = $(ROOT_DIR)/filters.json
+DOWNLOAD_SCRIPT = $(ROOT_DIR)/download_icu_data.sh
+REQUIREMENTS_FILE = $(ROOT_DIR)/requirements.txt
+
+# ビルド作業用ディレクトリ
+OUT_DIR = $(BUILD_DIR)/out
+TMP_DIR = $(BUILD_DIR)/tmp
+OBJ_DIR = $(BUILD_DIR)/obj
+DAT_DIR = $(BUILD_DIR)/dat
+LIB_DIR = $(BUILD_DIR)/lib
+
+# Python venv 環境
+VENV_DIR = $(BUILD_DIR)/venv
+PYTHON = $(VENV_DIR)/Scripts/python.exe
+
+# ==============================================================================
+# 出力ファイル名
+# ==============================================================================
+
 LIB_NAME = icudt$(ICU_VER)
-ENTRY_POINT = $(LIB_NAME)
 DATA_NAME = icudt$(ICU_VER)$(LIB_CHAR)
+PKGDATA_LIST = $(TMP_DIR)/icudata.lst
+DAT_FILE = $(DAT_DIR)/$(DATA_NAME).dat
+OBJ_FILE = $(OBJ_DIR)/$(DATA_NAME).o
+LIB_FILE = $(LIB_DIR)/lib$(LIB_NAME).a
 
-# pkgdata の Windows バイナリで static lib 生成をしようとすると
-# -O オプションは無視される…。MINGWIN バイナリに置き換えた時は使えるかも？
-# PKGDATA_OPTS = -O $(BASE_DIR)/bldopts/windows.txt
-PKGDATA_OPTS = 
+# ICU エントリポイントシンボル (icudt67_dat 形式)
+ICU_ENTRY_SYMBOL = $(LIB_NAME)_dat
 
-## List of phony targets
-.PHONY: all clean clean-lib packagedata
+# objcopy が生成するデフォルトシンボルのベース名
+BINARY_SYMBOL_BASE = _binary_$(DATA_NAME)_dat
+
+# ==============================================================================
+# ツール設定
+# ==============================================================================
+
+OBJCOPY ?= objcopy
+AR ?= ar
+
+# ==============================================================================
+# ターゲット
+# ==============================================================================
+
+.PHONY: all clean clean-lib clean-all prepare check-tools setup-venv lib datfile
 
 .SUFFIXES:
 
-all: packagedata
+# デフォルトターゲット
+all: lib
+
+# 静的ライブラリ作成
+lib: $(LIB_FILE)
+
+# .dat ファイルのみ作成
+datfile: $(DAT_FILE)
+
+# ==============================================================================
+# prepare: 必要なファイルが存在しない場合にダウンロードを実行
+# ==============================================================================
+
+prepare: check-tools
+	@if [ ! -d "$(DATA_DIR)" ] || [ ! -d "$(TOOL_DIR)" ] || [ ! -d "$(ICUTOOLS_DIR)" ]; then \
+		echo "=== Downloading ICU data from GitHub ==="; \
+		bash $(DOWNLOAD_SCRIPT) $(ICU_VERSION_TAG) $(BUILD_DIR) $(MSVC_VERSION); \
+	else \
+		echo "=== ICU data already exists, skipping download ==="; \
+	fi
+
+# curl または wget の存在確認
+check-tools:
+	@command -v curl >/dev/null 2>&1 || command -v wget >/dev/null 2>&1 || \
+		(echo "Error: curl or wget is required for downloading" && exit 1)
+	@command -v unzip >/dev/null 2>&1 || \
+		(echo "Error: unzip is required for extracting" && exit 1)
+
+# Python venv 環境のセットアップ
+setup-venv:
+	@if [ ! -f "$(PYTHON)" ]; then \
+		echo "=== Setting up Python venv ==="; \
+		py -3 -m venv $(VENV_DIR); \
+		$(PYTHON) -m pip install --upgrade pip; \
+		$(PYTHON) -m pip install -r $(REQUIREMENTS_FILE); \
+	else \
+		echo "=== Python venv already exists ==="; \
+	fi
+
+# ==============================================================================
+# クリーンターゲット
+# ==============================================================================
 
 clean:
 	rm -rf $(OUT_DIR) $(TMP_DIR)
-	
+
 clean-lib:
-	rm -rf $(LIB32_DIR) $(LIB64_DIR)
+	rm -rf $(LIB_DIR) $(OBJ_DIR) $(DAT_DIR)
 
-packagedata: $(LIB32_DIR)/$(LIB_NAME).lib $(LIB64_DIR)/$(LIB_NAME).lib
+# ダウンロードしたデータも含めて全てクリーン
+clean-all:
+	rm -rf $(BUILD_DIR)
 
-# pkgdata が勝手に頭に s をつけるので mv して本来の名前に戻す
-# (名前が icudt～ だと勝手に s をつけるような処理になっている…) 
-$(LIB32_DIR)/$(LIB_NAME).lib: $(PKGDATA_LIST)
-	@echo "== build 32bit static lib =="
-	@mkdir -p $(LIB32_DIR) 
-	$(TOOL32_DIR)/pkgdata -m static -T $(TMP_DIR) -e $(ENTRY_POINT) -p $(DATA_NAME) \
-		-L $(LIB_NAME) -d $(LIB32_DIR) -s $(OUT_DIR) $(PKGDATA_OPTS) $(PKGDATA_LIST)
-	@mv $(LIB32_DIR)/s$(LIB_NAME).lib $(LIB32_DIR)/$(LIB_NAME).lib
+# ==============================================================================
+# ビルドルール
+# ==============================================================================
 
-$(LIB64_DIR)/$(LIB_NAME).lib: $(PKGDATA_LIST)
-	@echo "== build 64bit static lib =="
-	@mkdir -p $(LIB64_DIR) 
-	$(TOOL64_DIR)/pkgdata -m static -T $(TMP_DIR) -e $(ENTRY_POINT)  -p $(DATA_NAME) \
-		-L $(LIB_NAME) -d $(LIB64_DIR) -s $(OUT_DIR) $(PKGDATA_OPTS) $(PKGDATA_LIST)
-	@mv $(LIB64_DIR)/s$(LIB_NAME).lib $(LIB64_DIR)/$(LIB_NAME).lib
+# 静的ライブラリ作成
+$(LIB_FILE): $(OBJ_FILE)
+	@echo "== create static lib =="
+	@mkdir -p $(LIB_DIR)
+	$(AR) rcs $(LIB_FILE) $(OBJ_FILE)
+	@echo "Created: $(LIB_FILE)"
 
+# オブジェクトファイル作成 (objcopy)
+$(OBJ_FILE): $(DAT_FILE)
+	@echo "== convert .dat to object =="
+	@mkdir -p $(OBJ_DIR)
+ifdef ADD_UNDERSCORE
+	cd $(DAT_DIR) && $(OBJCOPY) \
+		-I binary \
+		-O $(OBJFORMAT) \
+		-B $(OBJARCH) \
+		--rename-section .data=.rodata,alloc,load,readonly,data,contents \
+		--add-leading-underscore \
+		--redefine-sym _$(BINARY_SYMBOL_BASE)_start=_$(ICU_ENTRY_SYMBOL) \
+		$(DATA_NAME).dat $(OBJ_FILE)
+else
+	cd $(DAT_DIR) && $(OBJCOPY) \
+		-I binary \
+		-O $(OBJFORMAT) \
+		-B $(OBJARCH) \
+		--rename-section .data=.rodata,alloc,load,readonly,data,contents \
+		--redefine-sym $(BINARY_SYMBOL_BASE)_start=$(ICU_ENTRY_SYMBOL) \
+		$(DATA_NAME).dat $(OBJ_FILE)
+endif
+
+# .dat パッケージファイル作成 (icupkg)
+$(DAT_FILE): $(PKGDATA_LIST)
+	@echo "== create .dat package =="
+	@mkdir -p $(DAT_DIR)
+	cd $(OUT_DIR) && $(TOOL_DIR)/icupkg -t$(LIB_CHAR) -a $(PKGDATA_LIST) new $(DAT_FILE)
+	@echo "Created: $(DAT_FILE)"
+
+# リソースファイル (.res) ビルド (databuilder)
 # --mode で windows-exec を指定すると、起動するコマンドのパスが
 # <bindir>/<cmd>/<tool_cfg>/<cmd>.exe に固定されてうまく実行できない。
-# (各ツールバイナリを一つずつ <bindir>/<cmd>/<tool_cfg>/<cmd>.exe に
-# 配置しなおしても良いが…)。
 # unix-exec を指定すると <bindir>/<cmd> で実行されるのでその問題は無いが、
 # その代わりで MSYS では COMSPEC に powershell を指定してやらないと 
 # ./bin/hoge.exe みたいなパス指定でコマンドが起動できない。
-# (subprocess::call() で cmd.exe がキックされて、みたいな理由？)
-$(PKGDATA_LIST):
+# PYTHONPATH は icutools の親ディレクトリを指定 (icutools.databuilder として呼び出すため)
+$(PKGDATA_LIST): prepare setup-venv
 	@echo "== build resources =="
-	COMSPEC=powershell py -3 -B -m icutools.databuilder --mode unix-exec \
+	PYTHONPATH=$(BUILD_DIR) COMSPEC=powershell $(PYTHON) -B -m icutools.databuilder --mode unix-exec \
 		--src_dir $(DATA_DIR) --out_dir $(OUT_DIR) --tmp_dir $(TMP_DIR) \
-		--tool_dir $(TOOL32_DIR) --filter_file $(FILTER_FILE)
+		--tool_dir $(TOOL_DIR) --filter_file $(FILTER_FILE)

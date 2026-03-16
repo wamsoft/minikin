@@ -1,0 +1,3 @@
+# ICU databuilder で使用するPythonモジュール
+hjson
+jsonschema

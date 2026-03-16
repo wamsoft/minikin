@@ -25,61 +25,143 @@ cmake 用のパッチが置いてありますので、
 
 ## タスク
 
-- [ ] Windows 以外の生成に対応
+- [x] ICU データの自動ダウンロード対応
+- [x] Windows 以外の生成に対応
   - ディレクトリ等を考慮して Makefile を更新する必要あり
 
-## Windows 向け以外のリソースビルドについて
+## ディレクトリ構成
 
-現状では、最終的に static lib にする部分が Windows 向けのみとなっています。
-`pkgdata.exe` の static lib の生成方法が C ソースに
-ハードコードされているせいです。
+```
+icudata/
+├── Makefile              # ビルド用 Makefile
+├── README.md             # このファイル
+├── filters.json          # リソースフィルタ設定
+├── download_icu_data.sh  # ICU データダウンロードスクリプト
+└── requirements.txt      # Python 依存モジュール
 
-ただ、単純にパックしたバイナリデータにエントリポイントのシンボルを
-つけてアーカイブしただけのように見えるので、objdump 等のバイナリツールで
-シンボルをつけてオブジェクト化したらいけるのではないかなあと。
+../build/icudata/         # ビルド出力先 (自動生成)
+├── data/                 # ICU データソース (GitHub からダウンロード)
+├── bin64/                # Win64 ツールバイナリ (GitHub からダウンロード)
+├── icutools/             # Python ツール (GitHub からダウンロード)
+├── venv/                 # Python venv 環境 (hjson 等インストール済み)
+├── out/                  # ビルド中間ファイル (.res 等)
+├── tmp/                  # 一時ファイル
+├── dat/                  # .dat パッケージファイル
+├── obj/                  # objcopy 出力 (.o ファイル)
+└── lib/                  # static lib 出力先
+```
 
-## 各ファイル・ディレクトリの由来
+## ICU データの取得
 
-**_[重要] `data/` と `bin/` は harfbuzz-icu-freetype 内の ICU の
-バージョンアップに合わせて適切なバージョンに更新してください
+**_[重要] ICU のバージョンは harfbuzz-icu-freetype 内の ICU の
+バージョンに合わせてください。
 (ICU 内部のリソースバンドルの読み込み部でバージョン番号を
-エントリポイント名に使用しているので合わせないと多分コケます)。_**
+エントリポイント名に使用しているので合わせないとコケます)。_**
 
-以下、ファイル名にバージョン番号が含まれる場合は、適切に読み替えてください。
+### 自動ダウンロード (推奨)
 
-- data/
-  - ICU のソースのうち、`icu4c/source/data/` のみを抜き出したもの
-  - 公式でアーカイブして配布しているのでそれを配置
-    - icu4c-67_1-data.zip
-    - https://github.com/unicode-org/icu/releases
-- bin/, bin64/
-  - ICU の tools バイナリ群
-  - なるべく `data/` とバージョンを揃えたほうが良いと思われる
-  - 公式アーカイブ内の `bin/` もしくは `bin64/`以下を配置
-    - icu4c-67_1-Win32-MSVC2017.zip
-    - icu4c-67_1-Win64-MSVC2017.zip
-    - https://github.com/unicode-org/icu/releases
-- icutools/
-  - ICU のソースのうち、`icu4c/source/python/icutools` のみを抜き出したもの
-  - なるべく `data/` とバージョンを揃えたほうが良いと思われる
-  - 個別アーカイブはないので、ソースツリーから個別コピー
-    - icu4c-67_1-src.zip
-    - https://github.com/unicode-org/icu/releases
-      - github 上では以下のツリー
-      - https://github.com/unicode-org/icu/tree/release-67-1/icu4c/source/python/icutools
-- harfbuzz-icu-freetype_cmake.patch
-  - harfbuzz-icu-freetype の CMakeLists.txt で stubdata.cpp をターゲットから
-    外すためのパッチです。
-  - シンプルなので直接エディタで編集しちゃうのでも問題なし
+`make prepare` を実行すると、必要なファイルが存在しない場合に
+GitHub Release から自動的にダウンロードされます。
+
+```bash
+cd icudata
+make prepare
+```
+
+ダウンロードされるファイル:
+- `data/` - ICU データソース (`icu4c-XX_X-data.zip`)
+- `bin64/` - Win64 ツール (`icu4c-XX_X-Win64-MSVCXXXX.zip`)
+- `icutools/` - Python ツール (`icu4c-XX_X-src.zip` から抽出)
+
+### バージョン変更
+
+ICU のバージョンを変更する場合は、`Makefile` 内の以下の変数を編集してください:
+
+```makefile
+ICU_VER = 67              # メジャーバージョン番号
+ICU_VERSION_TAG = 67-1    # GitHub リリースタグ (release-XX-X 形式)
+MSVC_VERSION = MSVC2017   # Win64 バイナリの MSVC バージョン
+```
+
+**注意**: MSVC_VERSION は ICU リリースで提供されているバイナリに合わせてください。
+利用可能なバージョンは https://github.com/unicode-org/icu/releases で確認できます。
+(例: MSVC2017, MSVC2019 等)
+
+### 手動ダウンロード
+
+自動ダウンロードがうまくいかない場合は、以下から手動でダウンロードして
+`build/icudata/` 配下に配置してください:
+
+- https://github.com/unicode-org/icu/releases
+
+| ファイル | 配置先 | 内容 |
+|---------|--------|------|
+| icu4c-67_1-data.zip | build/icudata/data/ | データソース |
+| icu4c-67_1-Win64-MSVC2017.zip | build/icudata/bin64/ | Win64 ツール (bin64/ 配下) |
+| icu4c-67_1-src.zip | build/icudata/icutools/ | icu/source/python/icutools/ |
+
+※ MSVC2017 の部分はリリースによって異なります (MSVC2019 等)
 
 ## 前提環境
 
-MSYS + make + python3 を想定(それでのみ確認)。
+- MSYS2 (または Git Bash 等)
+- make
+- objcopy (MSYS2 の binutils に含まれる)
+- ar (MSYS2 の binutils に含まれる)
+- Python 3 (`py -3` コマンドで起動可能なこと)
+- curl または wget (自動ダウンロード用)
+- unzip (自動ダウンロード用)
+
+**注意**: Python の追加モジュール (hjson 等) は `build/icudata/venv/` に
+自動的にインストールされます。
 
 ## ビルド方法
 
-本ディレクトリで、make を実行してください。
-`lib32/` および `lib64/` にリソースバンドルの static lib が生成されます。
+本ディレクトリで make を実行してください。
+MSYS2 の `objcopy` と `ar` を使用して静的ライブラリを作成します。
+
+```bash
+cd icudata
+
+# 静的ライブラリを作成 (デフォルト: 64bit)
+make
+```
+
+出力先: `build/icudata/lib/libicudt67.a`
+
+### アーキテクチャ変更
+
+デフォルトは 64bit です。32bit 用にビルドする場合は以下のように指定します:
+
+```bash
+# 32bit Windows
+make OBJFORMAT=pe-i386 OBJARCH=i386 ADD_UNDERSCORE=1
+
+# 64bit Linux
+make OBJFORMAT=elf64-x86-64 OBJARCH=i386:x86-64
+
+# 32bit Linux
+make OBJFORMAT=elf32-i386 OBJARCH=i386 ADD_UNDERSCORE=1
+```
+
+### その他のコマンド
+
+```bash
+# ICU データのダウンロードのみ
+make prepare
+
+# .dat ファイルのみ作成
+make datfile
+
+# クリーン (中間ファイルのみ)
+make clean
+
+# クリーン (生成した lib のみ)
+make clean-lib
+
+# 全てクリーン (ダウンロードデータ含む)
+make clean-all
+```
 
 基本的には `filters.json` を変更した場合のみ再ビルドすれば OK です。
 
