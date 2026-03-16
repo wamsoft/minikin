@@ -23,7 +23,7 @@ GITHUB_RELEASE_BASE="https://github.com/unicode-org/icu/releases/download/${ICU_
 # ダウンロードするファイル
 DATA_ZIP="icu4c-${ICU_VERSION_UNDERSCORE}-data.zip"
 WIN64_ZIP="icu4c-${ICU_VERSION_UNDERSCORE}-Win64-${MSVC_VERSION}.zip"
-SRC_ZIP="icu4c-${ICU_VERSION_UNDERSCORE}-src.zip"
+SRC_ZIP="icu4c-${ICU_VERSION_UNDERSCORE}-sources.zip"
 
 # 一時ディレクトリ
 TEMP_DIR="${OUTPUT_DIR}/_temp"
