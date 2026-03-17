@@ -3,9 +3,12 @@
 # ==============================================================================
 
 # ICU バージョン設定
-ICU_VER = 77
-ICU_VERSION_TAG = 77-1
-MSVC_VERSION = MSVC2022
+ICU_VERSION ?= 77.1
+ICU_VERSION_TAG ?= 77-1
+ICU_MSVC_VERSION ?= MSVC2022
+
+# メジャーバージョン
+ICU_VER = $(firstword $(subst ., ,$(ICU_VERSION)))
 
 # エンディアン指定 (l=little-endian, b=big-endian)
 LIB_CHAR = l
@@ -119,7 +122,7 @@ datfile: $(DAT_FILE)
 prepare: check-tools
 	@if [ ! -d "$(DATA_DIR)" ] || [ ! -d "$(TOOL_DIR)" ] || [ ! -d "$(ICUTOOLS_DIR)" ]; then \
 		echo "=== Downloading ICU data from GitHub ==="; \
-		bash $(DOWNLOAD_SCRIPT) $(ICU_VERSION_TAG) $(BUILD_DIR) $(MSVC_VERSION); \
+		bash $(DOWNLOAD_SCRIPT) $(ICU_VERSION_TAG) $(BUILD_DIR) $(ICU_MSVC_VERSION); \
 	else \
 		echo "=== ICU data already exists, skipping download ==="; \
 	fi
@@ -204,7 +207,7 @@ $(DAT_FILE): $(PKGDATA_LIST)
 # その代わりで MSYS では COMSPEC に powershell を指定してやらないと 
 # ./bin/hoge.exe みたいなパス指定でコマンドが起動できない。
 # PYTHONPATH は icutools の親ディレクトリを指定 (icutools.databuilder として呼び出すため)
-$(PKGDATA_LIST): prepare setup-venv
+$(PKGDATA_LIST): prepare setup-venv $(FILTER_FILE)
 	@echo "== build resources =="
 	PYTHONPATH=$(BUILD_DIR) COMSPEC=powershell $(PYTHON) -B -m icutools.databuilder --mode unix-exec \
 		--src_dir $(DATA_DIR) --out_dir $(OUT_DIR) --tmp_dir $(TMP_DIR) \

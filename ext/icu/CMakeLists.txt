@@ -1,11 +1,17 @@
 cmake_minimum_required(VERSION 3.20.0)
 
-project(icucommon VERSION 77.1 LANGUAGES CXX C)
+set(ICU_VERSION "77.1" CACHE STRING "ICU version (major version only, e.g. 77)")
+set(ICU_VERSION_TAG "77-1" CACHE STRING "ICU version tag (e.g. 77-1)")
+# バージョン番号のメジャー部分だけ
+string(REGEX MATCH "^[0-9]+" ICU_VER "${ICU_VERSION}") 
 
-# ICU 77.1 をダウンロード（GitHubソースコードアーカイブを使用）
+project(icucommon VERSION ${ICU_VERSION} LANGUAGES CXX C)
+
+option(ICU_USE_STUBDATA "Use stubdata instead of real data (for testing)" OFF)
+
+# ICU をダウンロード（GitHubソースコードアーカイブを使用）
 include(FetchContent)
-set(ICU_VERSION "release-77.1")
-set(ICU_URL "https://github.com/unicode-org/icu/archive/refs/tags/${ICU_VERSION}.tar.gz")
+set(ICU_URL "https://github.com/unicode-org/icu/archive/refs/tags/release-${ICU_VERSION_TAG}.tar.gz")
 
 FetchContent_Declare(
     icu_source
@@ -13,28 +19,37 @@ FetchContent_Declare(
     DOWNLOAD_EXTRACT_TIMESTAMP TRUE
 )
 
-message(STATUS "Downloading ICU 77.1 from ${ICU_URL}...")
+message(STATUS "Downloading ICU ${ICU_VERSION} from ${ICU_URL}...")
 FetchContent_MakeAvailable(icu_source)
 
-# GitHubアーカイブの構造: icu-release-77.1/icu4c/source/
+# GitHubアーカイブの構造: icu-release-${ICU_VERSION}/icu4c/source/
 set(ICU_SOURCE_DIR "${icu_source_SOURCE_DIR}/icu4c/source")
 
 # common ディレクトリのソースを収集
 file(GLOB ICU_COMMON_SOURCES "${ICU_SOURCE_DIR}/common/*.cpp")
 file(GLOB ICU_COMMON_C_SOURCES "${ICU_SOURCE_DIR}/common/*.c")
 
+# i18n ディレクトリのソースを収集
+file(GLOB ICU_I18N_SOURCES "${ICU_SOURCE_DIR}/i18n/*.cpp")
+file(GLOB ICU_I18N_C_SOURCES "${ICU_SOURCE_DIR}/i18n/*.c")
+
 # stubdata ソース
-set(ICU_STUBDATA_SOURCES "${ICU_SOURCE_DIR}/stubdata/stubdata.cpp")
+if(ICU_USE_STUBDATA)
+    set(ICU_STUBDATA_SOURCES "${ICU_SOURCE_DIR}/stubdata/stubdata.cpp")
+endif()
 
 # icucommon ライブラリ作成
 add_library(icucommon STATIC
     ${ICU_COMMON_SOURCES}
     ${ICU_COMMON_C_SOURCES}
+    ${ICU_I18N_SOURCES}
+    ${ICU_I18N_C_SOURCES}
     ${ICU_STUBDATA_SOURCES}
 )
 
 target_include_directories(icucommon PUBLIC
     ${ICU_SOURCE_DIR}/common
+    ${ICU_SOURCE_DIR}/i18n
     ${ICU_SOURCE_DIR}/stubdata
 )
 
@@ -42,6 +57,7 @@ target_compile_definitions(icucommon PUBLIC
     U_STATIC_IMPLEMENTATION=1
     PIC
     U_COMMON_IMPLEMENTATION
+    U_I18N_IMPLEMENTATION
 )
 
 # MSVC 設定
@@ -67,7 +83,6 @@ add_library(ICU::common ALIAS icucommon)
 add_library(ICU::uc ALIAS icucommon)
 
 # ICU バージョン情報をエクスポート（親スコープにも設定）
-set(ICU_VERSION "77.1" CACHE STRING "ICU version" FORCE)
 set(ICU_FOUND TRUE CACHE BOOL "ICU found" FORCE)
 set(ICU_uc_FOUND TRUE CACHE BOOL "ICU uc component found" FORCE)
 

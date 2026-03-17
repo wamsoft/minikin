@@ -1,7 +1,18 @@
 cmake_minimum_required(VERSION 3.20.0)
 
+set(ICU_VERSION "77.1" CACHE STRING "ICU version (major version only, e.g. 77)")
+set(ICU_VERSION_TAG "77-1" CACHE STRING "ICU version tag (e.g. 77-1)")
+set(ICU_MSVC_VERSION "MSVC2022" CACHE STRING "ICU MSVC version (e.g. MSVC2022)")
+
+# バージョン番号のメジャー部分だけ
+string(REGEX MATCH "^[0-9]+" ICU_VER "${ICU_VERSION}") 
+
 project(minikin VERSION 0.1.0)
 set(PROJ_NAME minikin)
+
+# icudata を内臓させずにスタブだけにする
+# ext/icu にも影響します
+option(ICU_USE_STUBDATA "Use stubdata instead of real data (for testing)" OFF)
 
 file(GLOB SOURCES "libs/minikin/*.cpp")
 add_library(${PROJ_NAME} ${SOURCES})
@@ -34,18 +45,30 @@ add_compile_definitions(WAMSOFT_MODIFIED)
 # FreeType は vcpkg からインストール
 find_package(freetype CONFIG REQUIRED)
 
-# ICU 77.1 (GitHub からソース取得してビルド)
+# ICU  (GitHub からソース取得してビルド)
 add_subdirectory(${PROJECT_SOURCE_DIR}/ext/icu)
 
 # HarfBuzz 13.1.1 (GitHub から取得、freetype と ICU に依存)
 add_subdirectory(${PROJECT_SOURCE_DIR}/ext/harfbuzz)
 
 # ==============================================================================
+# リンク設定
+# ==============================================================================
+target_link_libraries(${PROJ_NAME} PUBLIC 
+  freetype
+  icucommon 
+  harfbuzz 
+)
+
+# スタブデータをつくらない場合は icudata をライブラリとしてリンク
+if (NOT ICU_USE_STUBDATA)
+
+# ==============================================================================
 # ICU データライブラリ (icudata ディレクトリで Makefile によりビルド)
 # ==============================================================================
 set(ICU_DATA_DIR ${PROJECT_SOURCE_DIR}/icudata)
 set(ICU_DATA_OUTPUT_DIR ${PROJECT_BINARY_DIR})
-set(ICU_DATA_LIB ${ICU_DATA_OUTPUT_DIR}/icudata_build/lib/libicudt77.a)
+set(ICU_DATA_LIB ${ICU_DATA_OUTPUT_DIR}/icudata_build/lib/libicudt${ICU_VER}.a)
 
 # ICU データライブラリをビルドするカスタムターゲット
 # Windows では MSYS2/Git Bash 環境の make を想定
@@ -142,6 +165,9 @@ if(MAKE_EXECUTABLE)
             OBJFORMAT=${ICU_DATA_OBJFORMAT}
             OBJARCH=${ICU_DATA_OBJARCH}
             ADD_UNDERSCORE=${ICU_DATA_ADD_UNDERSCORE}
+            ICU_VERSION=${ICU_VERSION}
+            ICU_VERSION_TAG=${ICU_VERSION_TAG}
+            ICU_MSVC_VERSION=${ICU_MSVC_VERSION}
         WORKING_DIRECTORY ${ICU_DATA_DIR}
         COMMENT "Building ICU data library..."
         VERBATIM
@@ -152,6 +178,9 @@ if(MAKE_EXECUTABLE)
         DEPENDS ${ICU_DATA_LIB}
         COMMENT "ICU data library target"
     )
+
+    add_dependencies(${PROJ_NAME} icudata_build)
+
 else()
     message(WARNING "make not found. ICU data library must be built manually: cd icudata && make lib")
     
@@ -171,14 +200,6 @@ set_target_properties(icudata PROPERTIES
 # リンク設定
 # ==============================================================================
 target_link_libraries(${PROJ_NAME} PUBLIC 
-  freetype
-  icucommon 
-  harfbuzz 
   icudata
 )
-
-# minikin が icudata_build に依存するように設定
-# (IMPORTED ライブラリには直接依存関係を設定できないため)
-if(MAKE_EXECUTABLE)
-    add_dependencies(${PROJ_NAME} icudata_build)
 endif()

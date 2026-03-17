@@ -28,11 +28,6 @@ $ git push origin master
 
 - 以後、単独ビルドのための対応を随時コミット。
 
-## タスク
-
-- [x] minikin 単独でのライブラリビルド
-- [x] minikin をリンクしたテスト実行バイナリの作成
-
 ## minikin の Windows ビルド対応について
 
 ### 主な変更点
@@ -49,18 +44,34 @@ $ git push origin master
   - `ssize_t` など範囲が広く、各ソースで共通して include しているヘッダがないため
     このような対応にした。
 
-### vcpkg の使用
+### 外部ライブラリ
 
-freetype は vcpkg.json で導入されるものを使います
+freetype は vcpkg.json で導入して find_package() できるものを使います
+
+icu は指定バージョンのものを DL して、harfbuzz で使う部分だけ icucommon としてビルドしています。
+icu のデータについては、icudata フォルダ以下の処理で作成して icudata としてライブラリリンクできるようになっています。
+
+※オプション ICU_USE_STUBDATA を指定して作成した場合は icucommon に含まれるデータは空のスタブになり icudata は生成されません
+別途  udata_setCommonData() で自前ロードする形になります
+
+harfbuzz は前述の手順で組み込まれる freetype と icu を組み込んだ形で cmake でビルドされます
+minikin はこの harfbuzz を使ってフォント情報取得と改行位置決定処理を行っています
+
+### ビルド手順
 
 環境別のビルドは CMakePresets.json の定義に合わせて --preset 指定で対応して下さい
 
-ビルド用の Makefile が準備されています
+ビルド用の Makefile が準備されています。以下の手順でビルドできます
 
 ```bash
 make prebuild
 make
 ```
 
-### 既知の問題（更新時注意）
+### LICENSE
+
+MINIKIN    Apache License 2.0
+freetype   FreeType License（FTL）
+ICU        ICU License
+HarfBuzz   MIT
 
