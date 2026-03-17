@@ -120,11 +120,12 @@ hb_font_funcs_t* getFontFuncsForEmoji() {
     static std::once_flag once;
     std::call_once(once, [&]() {
         fontFuncs = hb_font_funcs_create();
-        // Don't override the h_advance function since we use HarfBuzz's implementation for emoji
-        // for performance reasons.
-        // Note that it is technically possible for a TrueType font to have outline and embedded
-        // bitmap at the same time. We ignore modified advances of hinted outline glyphs in that
-        // case.
+        // Override the h_advance function for emoji as well to handle color bitmap font scaling.
+        // Color bitmap fonts (like NotoColorEmoji) have fixed-size bitmaps that need scaling
+        // to match the requested font size.
+        hb_font_funcs_set_glyph_h_advance_func(fontFuncs, harfbuzzGetGlyphHorizontalAdvance, 0, 0);
+        hb_font_funcs_set_glyph_h_advances_func(fontFuncs, harfbuzzGetGlyphHorizontalAdvances, 0,
+                                                0);
         hb_font_funcs_set_glyph_h_origin_func(fontFuncs, harfbuzzGetGlyphHorizontalOrigin, 0, 0);
         hb_font_funcs_make_immutable(fontFuncs);
     });
