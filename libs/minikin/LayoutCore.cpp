@@ -354,6 +354,7 @@ LayoutPiece::LayoutPiece(const U16StringPiece& textBuf, const Range& range, bool
     mFontIndices.reserve(count);
     mGlyphIds.reserve(count);
     mPoints.reserve(count);
+    mClusters.reserve(count);
 
     HbBufferUniquePtr buffer(hb_buffer_create());
     std::vector<FontCollection::Run> items = paint.font->itemize(
@@ -502,6 +503,7 @@ LayoutPiece::LayoutPiece(const U16StringPiece& textBuf, const Range& range, bool
                 mFontIndices.push_back(font_ix);
                 mGlyphIds.push_back(glyph_ix);
                 mPoints.emplace_back(x + xoff, y + yoff);
+                mClusters.push_back(static_cast<uint32_t>(clusterBaseIndex));
                 float xAdvance = HBFixedToFloat(positions[i].x_advance);
                 MinikinRect glyphBounds;
                 hb_glyph_extents_t extents = {};

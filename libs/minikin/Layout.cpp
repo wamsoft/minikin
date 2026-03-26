@@ -149,7 +149,8 @@ float Layout::doLayoutWord(const uint16_t* buf, size_t start, size_t count, size
 void Layout::appendLayout(const LayoutPiece& src, size_t start, float extraAdvance) {
     for (size_t i = 0; i < src.glyphCount(); i++) {
         mGlyphs.emplace_back(src.fontAt(i), src.glyphIdAt(i), mAdvance + src.pointAt(i).x,
-                             src.pointAt(i).y);
+                             src.pointAt(i).y,
+                             static_cast<uint32_t>(start + src.clusterAt(i)));
     }
     const std::vector<float>& advances = src.advances();
     for (size_t i = 0; i < advances.size(); i++) {

@@ -34,13 +34,14 @@ class Layout;
 struct LayoutPieces;
 
 struct LayoutGlyph {
-    LayoutGlyph(FakedFont font, uint32_t glyph_id, float x, float y)
-            : font(font), glyph_id(glyph_id), x(x), y(y) {}
+    LayoutGlyph(FakedFont font, uint32_t glyph_id, float x, float y, uint32_t cluster = 0)
+            : font(font), glyph_id(glyph_id), x(x), y(y), cluster(cluster) {}
     FakedFont font;
 
     uint32_t glyph_id;
     float x;
     float y;
+    uint32_t cluster;  // 論理文字位置（入力テキスト中のオフセット）
 };
 
 // Must be the same value with Paint.java
@@ -89,6 +90,7 @@ public:
     unsigned int getGlyphId(int i) const { return mGlyphs[i].glyph_id; }
     float getX(int i) const { return mGlyphs[i].x; }
     float getY(int i) const { return mGlyphs[i].y; }
+    uint32_t getCluster(int i) const { return mGlyphs[i].cluster; }
     float getAdvance() const { return mAdvance; }
     float getCharAdvance(size_t i) const { return mAdvances[i]; }
     const std::vector<float>& getAdvances() const { return mAdvances; }

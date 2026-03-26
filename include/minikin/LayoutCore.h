@@ -52,6 +52,7 @@ public:
     const std::vector<uint32_t> glyphIds() const { return mGlyphIds; }
     const std::vector<Point> points() const { return mPoints; }
     const std::vector<float> advances() const { return mAdvances; }
+    const std::vector<uint32_t>& clusters() const { return mClusters; }
     float advance() const { return mAdvance; }
     const MinikinRect& bounds() const { return mBounds; }
     const MinikinExtent& extent() const { return mExtent; }
@@ -62,6 +63,7 @@ public:
     const FakedFont& fontAt(int glyphPos) const { return mFonts[mFontIndices[glyphPos]]; }
     uint32_t glyphIdAt(int glyphPos) const { return mGlyphIds[glyphPos]; }
     const Point& pointAt(int glyphPos) const { return mPoints[glyphPos]; }
+    uint32_t clusterAt(int glyphPos) const { return mClusters[glyphPos]; }
 
     uint32_t getMemoryUsage() const {
         return sizeof(uint8_t) * mFontIndices.size() + sizeof(uint32_t) * mGlyphIds.size() +
@@ -75,6 +77,7 @@ private:
     std::vector<uint8_t> mFontIndices;  // per glyph
     std::vector<uint32_t> mGlyphIds;    // per glyph
     std::vector<Point> mPoints;         // per glyph
+    std::vector<uint32_t> mClusters;    // per glyph: 論理文字位置
 
     std::vector<float> mAdvances;  // per code units
 
