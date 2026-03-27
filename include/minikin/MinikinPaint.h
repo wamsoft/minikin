@@ -53,6 +53,7 @@ struct MinikinPaint {
               skewX(0),
               letterSpacing(0),
               wordSpacing(0),
+              fontWidth(100.0f),
               fontFlags(0),
               localeListId(0),
               familyVariant(FamilyVariant::DEFAULT),
@@ -66,6 +67,7 @@ struct MinikinPaint {
     float skewX;
     float letterSpacing;
     float wordSpacing;
+    float fontWidth;  // フォント幅（パーセント、100.0 = 通常）
     uint32_t fontFlags;
     uint32_t localeListId;
     FontStyle fontStyle;
@@ -84,6 +86,7 @@ struct MinikinPaint {
     inline bool operator==(const MinikinPaint& paint) const {
         return size == paint.size && scaleX == paint.scaleX && skewX == paint.skewX &&
                letterSpacing == paint.letterSpacing && wordSpacing == paint.wordSpacing &&
+               fontWidth == paint.fontWidth &&
                fontFlags == paint.fontFlags && localeListId == paint.localeListId &&
                fontStyle == paint.fontStyle && familyVariant == paint.familyVariant &&
                fontFeatureSettings == paint.fontFeatureSettings && font.get() == paint.font.get();
@@ -96,6 +99,7 @@ struct MinikinPaint {
                 .update(skewX)
                 .update(letterSpacing)
                 .update(wordSpacing)
+                .update(fontWidth)
                 .update(fontFlags)
                 .update(localeListId)
                 .update(fontStyle.identifier())
