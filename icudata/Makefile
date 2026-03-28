@@ -180,7 +180,7 @@ ifdef ADD_UNDERSCORE
 		-O $(OBJFORMAT) \
 		-B $(OBJARCH) \
 		--rename-section .data=.rodata,alloc,load,readonly,data,contents \
-		--redefine-sym _$(BINARY_SYMBOL_BASE)_start=_$(ICU_ENTRY_SYMBOL) \
+		--redefine-sym $(BINARY_SYMBOL_BASE)_start=_$(ICU_ENTRY_SYMBOL) \
 		$(DATA_NAME).dat $(OBJ_FILE)
 else
 	cd $(DAT_DIR) && $(OBJCOPY) \
