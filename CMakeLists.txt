@@ -45,11 +45,15 @@ add_compile_definitions(WAMSOFT_MODIFIED)
 # FreeType は vcpkg からインストール
 find_package(freetype CONFIG REQUIRED)
 
-# ICU  (GitHub からソース取得してビルド)
-add_subdirectory(${PROJECT_SOURCE_DIR}/ext/icu)
+# ICU / HarfBuzz: 親プロジェクトが既に同名 target を提供しているなら
+# (krkrz_dev umbrella の cmake/CommonExternals.cmake が典型) それを再利用する。
+if(NOT TARGET icucommon)
+    add_subdirectory(${PROJECT_SOURCE_DIR}/ext/icu)
+endif()
 
-# HarfBuzz 13.1.1 (GitHub から取得、freetype と ICU に依存)
-add_subdirectory(${PROJECT_SOURCE_DIR}/ext/harfbuzz)
+if(NOT TARGET harfbuzz)
+    add_subdirectory(${PROJECT_SOURCE_DIR}/ext/harfbuzz)
+endif()
 
 # ==============================================================================
 # リンク設定
