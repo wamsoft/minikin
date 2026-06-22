@@ -68,142 +68,69 @@ target_link_libraries(${PROJ_NAME} PUBLIC
 if (NOT ICU_USE_STUBDATA)
 
 # ==============================================================================
-# ICU データライブラリ (icudata ディレクトリで Makefile によりビルド)
+# ICU データ (同梱 .dat.gz を C ソース化し、ここで直接コンパイル)
 # ==============================================================================
+# 以前は icudata/Makefile が objcopy で .dat を .o に埋め込み、それを静的
+# ライブラリ化して IMPORTED していた。しかし objcopy は出力フォーマット
+# (pe/elf/mach-o) やアーキ、シンボルのアンダースコアをターゲットごとに
+# 指定する必要があり、GNU objcopy は mach-o を生成できないため macOS
+# ビルドが破綻していた。
+#
+# 現在は ICU データパッケージ (.dat) を gzip 圧縮してリポジトリに同梱し
+# (icudata/icudt${ICU_VER}l.dat.gz)、ビルド時に Python (gen_icudata_c.py) で
+# 解凍しつつ C ソース (シンボル icudt${ICU_VER}_dat、16 バイト整列、
+# 先頭=データ先頭バイト) に変換、その .c をこのプロジェクトのコンパイラで
+# 直接コンパイルする。
+#   * objcopy / ar / アーキ別フラグが一切不要 → 全プラットフォーム共通。
+#   * 通常ビルドに ICU ネイティブツール (bin64 等) も make も不要
+#     (Python さえあればよい)。clone 一発でビルドできる。
+# .dat.gz の更新 (filters.json や ICU バージョン変更時) は
+#   icudata/ で `make update-bundle` を実行 → 生成された .dat.gz をコミット。
 set(ICU_DATA_DIR ${PROJECT_SOURCE_DIR}/icudata)
 set(ICU_DATA_OUTPUT_DIR ${PROJECT_BINARY_DIR})
-set(ICU_DATA_LIB ${ICU_DATA_OUTPUT_DIR}/icudata_build/lib/libicudt${ICU_VER}.a)
+set(ICU_DATA_BUNDLE ${ICU_DATA_DIR}/icudt${ICU_VER}l.dat.gz)
+set(ICU_DATA_GEN ${ICU_DATA_DIR}/gen_icudata_c.py)
+set(ICU_DATA_CSRC ${ICU_DATA_OUTPUT_DIR}/icudata_build/csrc/icudt${ICU_VER}_dat.c)
 
-# ICU データライブラリをビルドするカスタムターゲット
-# Windows では MSYS2/Git Bash 環境の make を想定
-find_program(MAKE_EXECUTABLE NAMES make mingw32-make gmake
-    HINTS 
-        "$ENV{MSYS2_ROOT}/usr/bin"
-        "C:/msys64/usr/bin"
-        "$ENV{ProgramFiles}/Git/usr/bin"
-)
+# C ソース生成には Python 3 のみ必要 (追加モジュール不要)
+find_package(Python3 COMPONENTS Interpreter REQUIRED)
 
-if(MAKE_EXECUTABLE)
-    message(STATUS "Found make: ${MAKE_EXECUTABLE}")
-    
-    # アーキテクチャ別の objcopy 設定
-    # CMakePresets.json から明示的に設定されていない場合、プラットフォームに応じて自動判定
-    if(NOT DEFINED ICU_DATA_OBJFORMAT OR NOT DEFINED ICU_DATA_OBJARCH OR NOT DEFINED ICU_DATA_ADD_UNDERSCORE)
-        # 64bit/32bit 判定
-        if(CMAKE_SIZEOF_VOID_P EQUAL 8)
-            set(_IS_64BIT TRUE)
-        else()
-            set(_IS_64BIT FALSE)
-        endif()
-        
-        # プロセッサアーキテクチャ判定 (arm64/aarch64 かどうか)
-        string(TOLOWER "${CMAKE_SYSTEM_PROCESSOR}" _PROC_LOWER)
-        if(_PROC_LOWER MATCHES "aarch64|arm64")
-            set(_IS_ARM64 TRUE)
-        else()
-            set(_IS_ARM64 FALSE)
-        endif()
-        
-        if(ANDROID)
-            # Android
-            set(ICU_DATA_ADD_UNDERSCORE "")
-            if(_IS_ARM64)
-                set(ICU_DATA_OBJFORMAT "elf64-littleaarch64")
-                set(ICU_DATA_OBJARCH "aarch64")
-            else()
-                # x86_64 Android
-                set(ICU_DATA_OBJFORMAT "elf64-x86-64")
-                set(ICU_DATA_OBJARCH "i386:x86-64")
-            endif()
-        elseif(CMAKE_SYSTEM_NAME STREQUAL "Windows" OR WIN32)
-            # Windows
-            if(_IS_64BIT)
-                set(ICU_DATA_OBJFORMAT "pe-x86-64")
-                set(ICU_DATA_OBJARCH "i386:x86-64")
-                set(ICU_DATA_ADD_UNDERSCORE "")
-            else()
-                set(ICU_DATA_OBJFORMAT "pe-i386")
-                set(ICU_DATA_OBJARCH "i386")
-                set(ICU_DATA_ADD_UNDERSCORE "1")
-            endif()
-        elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin" OR APPLE)
-            # macOS
-            set(ICU_DATA_ADD_UNDERSCORE "1")
-            if(_IS_ARM64)
-                set(ICU_DATA_OBJFORMAT "mach-o-arm64")
-                set(ICU_DATA_OBJARCH "aarch64")
-            else()
-                set(ICU_DATA_OBJFORMAT "mach-o-x86-64")
-                set(ICU_DATA_OBJARCH "i386:x86-64")
-            endif()
-        elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux" OR UNIX)
-            # Linux / その他 UNIX
-            set(ICU_DATA_ADD_UNDERSCORE "")
-            if(_IS_ARM64)
-                set(ICU_DATA_OBJFORMAT "elf64-littleaarch64")
-                set(ICU_DATA_OBJARCH "aarch64")
-            elseif(_IS_64BIT)
-                set(ICU_DATA_OBJFORMAT "elf64-x86-64")
-                set(ICU_DATA_OBJARCH "i386:x86-64")
-            else()
-                set(ICU_DATA_OBJFORMAT "elf32-i386")
-                set(ICU_DATA_OBJARCH "i386")
-            endif()
-        else()
-            # フォールバック: x64-windows 互換
-            message(WARNING "Unknown platform: ${CMAKE_SYSTEM_NAME}/${CMAKE_SYSTEM_PROCESSOR}, using x64-windows defaults")
-            set(ICU_DATA_OBJFORMAT "pe-x86-64")
-            set(ICU_DATA_OBJARCH "i386:x86-64")
-            set(ICU_DATA_ADD_UNDERSCORE "")
-        endif()
-    endif()
-    
-    message(STATUS "ICU data: OBJFORMAT=${ICU_DATA_OBJFORMAT}, OBJARCH=${ICU_DATA_OBJARCH}, ADD_UNDERSCORE=${ICU_DATA_ADD_UNDERSCORE}")
-    message(STATUS "ICU data output: ${ICU_DATA_OUTPUT_DIR}/icudata_build/")
-    
-    # ICU データライブラリが存在しない場合にビルドするカスタムコマンド
-    add_custom_command(
-        OUTPUT ${ICU_DATA_LIB}
-        COMMAND ${MAKE_EXECUTABLE} lib
-            OUTPUT_DIR=${ICU_DATA_OUTPUT_DIR}
-            OBJFORMAT=${ICU_DATA_OBJFORMAT}
-            OBJARCH=${ICU_DATA_OBJARCH}
-            ADD_UNDERSCORE=${ICU_DATA_ADD_UNDERSCORE}
-            ICU_VERSION=${ICU_VERSION}
-            ICU_VERSION_TAG=${ICU_VERSION_TAG}
-            ICU_MSVC_VERSION=${ICU_MSVC_VERSION}
-        WORKING_DIRECTORY ${ICU_DATA_DIR}
-        COMMENT "Building ICU data library..."
-        VERBATIM
-    )
-    
-    # カスタムターゲット (明示的にビルドする場合)
-    add_custom_target(icudata_build
-        DEPENDS ${ICU_DATA_LIB}
-        COMMENT "ICU data library target"
-    )
+message(STATUS "ICU data bundle: ${ICU_DATA_BUNDLE}")
+message(STATUS "ICU data C source: ${ICU_DATA_CSRC}")
 
-    add_dependencies(${PROJ_NAME} icudata_build)
-
-else()
-    message(WARNING "make not found. ICU data library must be built manually: cd icudata && make lib")
-    
-    # ダミーターゲット
-    add_custom_target(icudata_build
-        COMMENT "ICU data library (manual build required)"
-    )
+if(NOT EXISTS ${ICU_DATA_BUNDLE})
+    message(FATAL_ERROR
+        "ICU data bundle not found: ${ICU_DATA_BUNDLE}\n"
+        "Generate it on a host with ICU tools: cd icudata && make update-bundle")
 endif()
 
-# ICU データをインポートライブラリとして定義
-add_library(icudata STATIC IMPORTED GLOBAL)
-set_target_properties(icudata PROPERTIES
-    IMPORTED_LOCATION ${ICU_DATA_LIB}
+# 同梱 .dat.gz を解凍しつつ C ソース化するカスタムコマンド
+add_custom_command(
+    OUTPUT ${ICU_DATA_CSRC}
+    COMMAND ${Python3_EXECUTABLE} ${ICU_DATA_GEN}
+        --input ${ICU_DATA_BUNDLE}
+        --output ${ICU_DATA_CSRC}
+        --symbol icudt${ICU_VER}_dat
+    DEPENDS ${ICU_DATA_BUNDLE} ${ICU_DATA_GEN}
+    COMMENT "Generating ICU data C source from bundled .dat.gz..."
+    VERBATIM
 )
+
+# 生成される C ソースは構成時点では存在しないため GENERATED 扱いにする
+set_source_files_properties(${ICU_DATA_CSRC} PROPERTIES GENERATED TRUE)
+
+# ICU データを静的ライブラリとしてビルド (生成 C ソースを直接コンパイル)
+add_library(icudata STATIC ${ICU_DATA_CSRC})
+
+# 巨大な単一データファイルのため最適化やデバッグ情報は不要 (ビルド高速化)
+if(NOT MSVC)
+    target_compile_options(icudata PRIVATE -O0)
+endif()
 
 # ==============================================================================
 # リンク設定
 # ==============================================================================
-target_link_libraries(${PROJ_NAME} PUBLIC 
+target_link_libraries(${PROJ_NAME} PUBLIC
   icudata
 )
 endif()

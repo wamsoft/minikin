@@ -22,30 +22,16 @@ ICU_VER = $(firstword $(subst ., ,$(ICU_VERSION)))
 LIB_CHAR = l
 
 # ==============================================================================
-# アーキテクチャ設定 (デフォルト: 64bit)
+# .dat -> C ソース変換について
 # ==============================================================================
-# 64bit (デフォルト):
-#   OBJFORMAT = pe-x86-64
-#   OBJARCH = i386:x86-64
-#   ADD_UNDERSCORE =
+# 以前は objcopy で .dat を直接 .o に埋め込み、それを静的ライブラリ化して
+# いた。しかし objcopy は出力フォーマット (pe/elf/mach-o) やアーキテクチャ、
+# シンボルのアンダースコア有無をターゲットごとに指定する必要があり、特に
+# GNU objcopy は mach-o を生成できないため macOS ビルドで破綻していた。
 #
-# 32bit の場合は以下を指定:
-#   OBJFORMAT = pe-i386
-#   OBJARCH = i386
-#   ADD_UNDERSCORE = 1
-#
-# Linux 64bit:
-#   OBJFORMAT = elf64-x86-64
-#   OBJARCH = i386:x86-64
-#
-# Linux 32bit:
-#   OBJFORMAT = elf32-i386
-#   OBJARCH = i386
-#   ADD_UNDERSCORE = 1
-
-OBJFORMAT ?= pe-x86-64
-OBJARCH ?= i386:x86-64
-ADD_UNDERSCORE ?=
+# 現在は Python (gen_icudata_c.py) で .dat を C ソースに変換する。生成された
+# .c は上位 (CMake) がそのプロジェクトのコンパイラで直接コンパイルするため、
+# objcopy/ar やアーキ別フラグは一切不要で完全に移植性がある。
 
 # ==============================================================================
 # ディレクトリ設定
@@ -74,9 +60,8 @@ REQUIREMENTS_FILE = $(ROOT_DIR)/requirements.txt
 # ビルド作業用ディレクトリ (OUTPUT_DIR 配下)
 OUT_DIR = $(OUTPUT_DIR)/icudata_build/out
 TMP_DIR = $(OUTPUT_DIR)/icudata_build/tmp
-OBJ_DIR = $(OUTPUT_DIR)/icudata_build/obj
 DAT_DIR = $(OUTPUT_DIR)/icudata_build/dat
-LIB_DIR = $(OUTPUT_DIR)/icudata_build/lib
+CSRC_DIR = $(OUTPUT_DIR)/icudata_build/csrc
 
 # Python venv 環境 (共有、BUILD_DIR 固定)
 VENV_DIR = $(BUILD_DIR)/venv
@@ -100,38 +85,56 @@ LIB_NAME = icudt$(ICU_VER)
 DATA_NAME = icudt$(ICU_VER)$(LIB_CHAR)
 PKGDATA_LIST = $(TMP_DIR)/icudata.lst
 DAT_FILE = $(DAT_DIR)/$(DATA_NAME).dat
-OBJ_FILE = $(OBJ_DIR)/$(DATA_NAME).o
-LIB_FILE = $(LIB_DIR)/lib$(LIB_NAME).a
 
-# ICU エントリポイントシンボル (icudt67_dat 形式)
+# リポジトリに同梱する圧縮済み .dat (clone 一発で取得できる成果物)。
+# 通常ビルドはこれを Python で解凍して C ソース化するため、ICU ネイティブ
+# ツール (bin64 等) も make も不要 (Windows/Linux/macOS 共通で動作)。
+# filters.json や ICU バージョンを変えたときだけ update-bundle で更新する。
+BUNDLED_DAT_GZ = $(ROOT_DIR)/$(DATA_NAME).dat.gz
+
+# ICU エントリポイントシンボル (icudt77_dat 形式)
+# ICU 側 (common/udata.cpp) の U_ICUDATA_ENTRY_POINT と一致させる必要がある。
 ICU_ENTRY_SYMBOL = $(LIB_NAME)_dat
 
-# objcopy が生成するデフォルトシンボルのベース名
-BINARY_SYMBOL_BASE = _binary_$(DATA_NAME)_dat
+# 生成する C ソース (このファイル名は上位 CMake からも参照される)
+C_FILE = $(CSRC_DIR)/$(ICU_ENTRY_SYMBOL).c
 
-# ==============================================================================
-# ツール設定
-# ==============================================================================
+# .dat -> C ソース変換スクリプト
+GEN_SCRIPT = $(ROOT_DIR)/gen_icudata_c.py
 
-OBJCOPY ?= objcopy
-AR ?= ar
+# C ソース生成に使う Python (上位 CMake は自前の Python を直接渡す。
+# ここでは make 単体実行向けに、venv があればそれ、無ければ素の python を使う)
+ifeq ($(OS),Windows_NT)
+GEN_PYTHON ?= $(if $(wildcard $(PYTHON)),$(PYTHON),py -3)
+else
+GEN_PYTHON ?= $(if $(wildcard $(PYTHON)),$(PYTHON),python3)
+endif
 
 # ==============================================================================
 # ターゲット
 # ==============================================================================
 
-.PHONY: all clean clean-lib clean-all prepare check-tools setup-venv lib datfile
+.PHONY: all clean clean-gen clean-all prepare check-tools setup-venv csource datfile update-bundle
 
 .SUFFIXES:
 
-# デフォルトターゲット
-all: lib
+# デフォルトターゲット: 同梱 .dat.gz から C ソースを生成する
+all: csource
 
-# 静的ライブラリ作成
-lib: $(LIB_FILE)
+# .dat を埋め込んだ C ソースを生成 (上位 CMake がこれをコンパイルする)
+csource: $(C_FILE)
 
-# .dat ファイルのみ作成
+# .dat ファイルのみ作成 (ICU ツールで一から再ビルド。要 bin64 等)
 datfile: $(DAT_FILE)
+
+# 同梱用 .dat.gz を更新する (メンテナ用)。
+# filters.json や ICU バージョンを変更したら、ツールが揃ったホスト
+# (Windows / Linux-x64) でこれを実行し、生成された .dat.gz をコミットする。
+update-bundle: $(DAT_FILE)
+	@echo "== update bundled $(notdir $(BUNDLED_DAT_GZ)) =="
+	gzip -9 -n -c $(DAT_FILE) > $(BUNDLED_DAT_GZ)
+	@echo "Updated: $(BUNDLED_DAT_GZ)"
+	@echo "  -> このファイルをコミットしてください。"
 
 # ==============================================================================
 # prepare: 必要なファイルが存在しない場合にダウンロードを実行
@@ -170,8 +173,8 @@ setup-venv:
 clean:
 	rm -rf $(OUT_DIR) $(TMP_DIR)
 
-clean-lib:
-	rm -rf $(LIB_DIR) $(OBJ_DIR) $(DAT_DIR)
+clean-gen:
+	rm -rf $(CSRC_DIR) $(DAT_DIR)
 
 # ダウンロードしたデータも含めて全てクリーン
 clean-all:
@@ -181,34 +184,15 @@ clean-all:
 # ビルドルール
 # ==============================================================================
 
-# 静的ライブラリ作成
-$(LIB_FILE): $(OBJ_FILE)
-	@echo "== create static lib =="
-	@mkdir -p $(LIB_DIR)
-	$(AR) rcs $(LIB_FILE) $(OBJ_FILE)
-	@echo "Created: $(LIB_FILE)"
-
-# オブジェクトファイル作成 (objcopy)
-$(OBJ_FILE): $(DAT_FILE)
-	@echo "== convert .dat to object =="
-	@mkdir -p $(OBJ_DIR)
-ifdef ADD_UNDERSCORE
-	cd $(DAT_DIR) && $(OBJCOPY) \
-		-I binary \
-		-O $(OBJFORMAT) \
-		-B $(OBJARCH) \
-		--rename-section .data=.rodata,alloc,load,readonly,data,contents \
-		--redefine-sym $(BINARY_SYMBOL_BASE)_start=_$(ICU_ENTRY_SYMBOL) \
-		$(DATA_NAME).dat $(OBJ_FILE)
-else
-	cd $(DAT_DIR) && $(OBJCOPY) \
-		-I binary \
-		-O $(OBJFORMAT) \
-		-B $(OBJARCH) \
-		--rename-section .data=.rodata,alloc,load,readonly,data,contents \
-		--redefine-sym $(BINARY_SYMBOL_BASE)_start=$(ICU_ENTRY_SYMBOL) \
-		$(DATA_NAME).dat $(OBJ_FILE)
-endif
+# 同梱 .dat.gz を埋め込んだ C ソースを生成 (objcopy の代替)
+# 出力は 16 バイト整列・先頭=データ先頭バイトの C 配列。シンボル名は
+# ICU_ENTRY_SYMBOL (= icudt77_dat)。これを上位 CMake が直接コンパイルする。
+# 入力は同梱済みの .dat.gz なので ICU ネイティブツールは不要。
+$(C_FILE): $(BUNDLED_DAT_GZ) $(GEN_SCRIPT)
+	@echo "== generate C source from bundled .dat.gz =="
+	@mkdir -p $(CSRC_DIR)
+	$(GEN_PYTHON) $(GEN_SCRIPT) --input $(BUNDLED_DAT_GZ) --output $(C_FILE) --symbol $(ICU_ENTRY_SYMBOL)
+	@echo "Created: $(C_FILE)"
 
 # .dat パッケージファイル作成 (icupkg)
 $(DAT_FILE): $(PKGDATA_LIST)
