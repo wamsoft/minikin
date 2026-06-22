@@ -55,7 +55,9 @@ inline int android_errorWriteWithInfoLog(int tag, const char* subTag,
 // Layout.cpp が C++17 を要求するのだが、一方で libutils 由来の LruCache.h で 
 // unary_function を使用していて、こちらは C++17 から廃止担ってるという問題がある。
 // unary_function を定義そのまま用意して対応。
-#if ((defined(_MSVC_LANG) && _MSVC_LANG >= 201703L) || __cplusplus >= 201703L)
+#include <cstddef>
+#if ((defined(_MSVC_LANG) && _MSVC_LANG >= 201703L) || __cplusplus >= 201703L) \
+      && !defined(__GLIBCXX__)
 namespace std {
   template<class ArgumentType, class ResultType>
   struct unary_function

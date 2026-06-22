@@ -18,6 +18,7 @@
 #define MINIKIN_STRING_PIECE_H
 
 #include <cstdint>
+#include <cstring>
 #include <string>
 #include <vector>
 
