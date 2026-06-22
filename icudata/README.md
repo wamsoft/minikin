@@ -68,7 +68,7 @@ ICU_MSVC_VERSION = MSVC2022   # Win64 バイナリの MSVC バージョン
 - make
 - objcopy (MSYS2 の binutils に含まれる)
 - ar (MSYS2 の binutils に含まれる)
-- Python 3 (`py -3` コマンドで起動可能なこと)
+- Python 3 (Windows は `py -3`、それ以外は `python3` コマンドで起動可能なこと)
 - curl または wget (自動ダウンロード用)
 - unzip (自動ダウンロード用)
 

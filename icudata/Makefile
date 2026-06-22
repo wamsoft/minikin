@@ -1,3 +1,11 @@
+SHELL = /bin/bash
+
+ifeq ($(shell type cygpath >& /dev/null && echo true),true)
+FIXPATH = cygpath -ma
+else
+FIXPATH = realpath
+endif
+
 # ==============================================================================
 # ICU データリソースビルド設定
 # ==============================================================================
@@ -47,7 +55,7 @@ ADD_UNDERSCORE ?=
 ROOT_DIR := $(CURDIR)
 
 # ビルド出力先 (プロジェクト直下の build/icudata)
-BUILD_DIR = $(ROOT_DIR)/../build/icudata
+BUILD_DIR = $(shell $(FIXPATH) "$(ROOT_DIR)/../build/icudata")
 
 # 出力先ディレクトリ (外部から指定可能、デフォルトは BUILD_DIR)
 # cmake から OUTPUT_DIR=<path> で指定することで、各ビルドフォルダに出力可能
@@ -72,7 +80,17 @@ LIB_DIR = $(OUTPUT_DIR)/icudata_build/lib
 
 # Python venv 環境 (共有、BUILD_DIR 固定)
 VENV_DIR = $(BUILD_DIR)/venv
+
+# venv 作成に使う Python ランチャーと、venv 内 Python のパス
+# Windows: py ランチャー (py -3)、venv は Scripts/python.exe
+# それ以外: python3、venv は bin/python
+ifeq ($(OS),Windows_NT)
+PY ?= py -3
 PYTHON = $(VENV_DIR)/Scripts/python.exe
+else
+PY ?= python3
+PYTHON = $(VENV_DIR)/bin/python
+endif
 
 # ==============================================================================
 # 出力ファイル名
@@ -138,7 +156,7 @@ check-tools:
 setup-venv:
 	@if [ ! -f "$(PYTHON)" ]; then \
 		echo "=== Setting up Python venv ==="; \
-		py -3 -m venv $(VENV_DIR); \
+		$(PY) -m venv $(VENV_DIR); \
 		$(PYTHON) -m pip install --upgrade pip; \
 		$(PYTHON) -m pip install -r $(REQUIREMENTS_FILE); \
 	else \
@@ -208,6 +226,6 @@ $(DAT_FILE): $(PKGDATA_LIST)
 # PYTHONPATH は icutools の親ディレクトリを指定 (icutools.databuilder として呼び出すため)
 $(PKGDATA_LIST): prepare setup-venv $(FILTER_FILE)
 	@echo "== build resources =="
-	PYTHONPATH=$(BUILD_DIR) COMSPEC=powershell $(PYTHON) -B -m icutools.databuilder --mode unix-exec \
+	PYTHONPATH=$(BUILD_DIR)  $(PYTHON) -B -m icutools.databuilder --mode unix-exec \
 		--src_dir $(DATA_DIR) --out_dir $(OUT_DIR) --tmp_dir $(TMP_DIR) \
 		--tool_dir $(TOOL_DIR) --filter_file $(FILTER_FILE)
