@@ -24,10 +24,13 @@ magic に一致しないようにする特殊経路 (OS400 等。ICU 側が 8 �
     (このファイルは C としてコンパイルされる) なので、x86 の
     アンダースコア付与なども含めコンパイラが面倒を見る = 移植性が高い。
   * 16 バイト整列 (ICU の .balign 16 と同じ要件)。
-  * 中身は八進エスケープした文字列リテラルの連結。巨大な
-    要素初期化子の配列に比べ MSVC でもコンパイルが高速・省メモリ。
-    八進 (\ooo) は常に 3 桁以下で確定するため、後続文字との連結で
-    桁が繋がる曖昧さが無く安全。
+  * 中身は十進数値の要素初期化子 (unsigned char 配列)。以前は八進
+    エスケープの文字列リテラル連結だったが、x86 ホスト版 MSVC
+    (Hostx86) は巨大な連結文字列リテラルでフロントエンドのヒープを
+    使い切り C1060 (compiler is out of heap space) で死ぬ
+    (最適化やデバッグ情報の有無に関係なく発生)。数値配列初期化子は
+    MSVC の大規模配列向け高速パスに乗るため 32bit ホストでも通り、
+    コンパイル時間も同等 (いずれも数秒)。
 """
 
 import argparse
@@ -35,13 +38,9 @@ import gzip
 import os
 import sys
 
-# MSVC の文字列リテラル長制限 (C2026: 65535 文字) に十分な余裕を持たせる。
-# 八進エスケープは 1 バイトあたり最大 4 文字なので、1 リテラルあたりの
-# データ量はこの値に抑える (4096 * 4 = 16384 文字 << 65535)。
-BYTES_PER_LITERAL = 4096
-
-# バイト値 -> 八進エスケープ ("\\ooo") のルックアップテーブル
-_OCTAL = ['\\%03o' % b for b in range(256)]
+# 1 行あたりのデータバイト数 (可読性とファイルサイズのバランスのみ。
+# コンパイラの制限とは無関係)
+BYTES_PER_LINE = 32
 
 
 def _read_dat(dat_path):
@@ -83,9 +82,8 @@ def generate(dat_path, out_path, symbol):
         '#  define ICU_DATA_ALIGN_ATTR\n'
         '#endif\n'
         '\n'
-        '/* %d bytes (an implicit trailing NUL is added but harmless:\n'
-        ' * ICU uses the length encoded in the data itself). */\n'
-        'ICU_DATA_ALIGN const char %s[] ICU_DATA_ALIGN_ATTR =\n'
+        '/* %d bytes */\n'
+        'ICU_DATA_ALIGN const unsigned char %s[] ICU_DATA_ALIGN_ATTR = {\n'
         % (src_name, symbol, size, symbol)
     )
 
@@ -93,17 +91,15 @@ def generate(dat_path, out_path, symbol):
         fout.write(header)
 
         if not data:
-            # 空データでも有効な配列定義にする
-            fout.write('""\n')
+            # 空データでも有効な配列定義にする (サイズ 1 になるが未使用)
+            fout.write('0\n')
         else:
-            for off in range(0, size, BYTES_PER_LITERAL):
-                chunk = data[off:off + BYTES_PER_LITERAL]
-                # 1 チャンク = 1 行の文字列リテラル。隣接リテラルは連結される。
-                fout.write('"')
-                fout.write(''.join([_OCTAL[b] for b in chunk]))
-                fout.write('"\n')
+            for off in range(0, size, BYTES_PER_LINE):
+                chunk = data[off:off + BYTES_PER_LINE]
+                fout.write(','.join(['%d' % b for b in chunk]))
+                fout.write(',\n')
 
-        fout.write(';\n')
+        fout.write('};\n')
 
     return size
 
